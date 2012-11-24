@@ -8,6 +8,11 @@ INCLUDES = 			\
 	-DUSERDIR=\"$(localstatedir)/lib/AccountsService/users\" \
 	-I$(srcdir)		\
 	-I$(builddir)		\
+	-DCONFDIR=\"$(sysconfdir)\" \
+	-DPKGLIBDIR=\"$(pkglibdir)\" \
+	$(DBUS_GLIB_CFLAGS) 	\
+	$(GIO_CFLAGS)	 	\
+	$(GLIB_CFLAGS)		\
 	$(POLKIT_CFLAGS)	\
 	$(WARN_CFLAGS)
 
@@ -32,6 +37,7 @@ libexec_PROGRAMS = accounts-daemon
 accounts_daemon_SOURCES = 	\
 	$(enums_h_sources)	\
 	types.h			\
+	config.c                \
 	daemon.h		\
 	daemon.c		\
 	extensions.c		\
