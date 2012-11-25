@@ -105,13 +105,11 @@ struct User {
         gboolean      automatic_login;
         gboolean      system_account;
         gboolean      local_account;
-<<<<<<< HEAD
 
         guint        *extension_ids;
         guint         n_extension_ids;
-=======
+
         gboolean      excluded;
->>>>>>> Add excluded property to users
 };
 
 typedef struct UserClass
@@ -156,6 +154,32 @@ account_type_from_pwent (struct passwd *pwent)
         g_free (groups);
 
         return ACCOUNT_TYPE_STANDARD;
+}
+
+static gboolean
+user_has_system_shell (User *user)
+{
+        gboolean ret = FALSE;
+
+        /* HAVE_GETUSERSHELL doesn't seem to be available... */
+
+        if (user->shell != NULL) {
+                char *valid_shell;
+                ret = TRUE;
+                g_debug ("determine_sys_account: %s: shell is %s",
+                                user->user_name, user->shell);
+                setusershell ();
+                while ((valid_shell = getusershell ()) != NULL) {
+                        if (g_strcmp0 (user->shell, valid_shell) == 0)
+                                ret = FALSE;
+                }
+                endusershell ();
+        }
+
+        g_debug ("determine_sys_account: %s: is%s a system account",
+                user->user_name, (ret) ? "" : " not");
+
+        return ret;
 }
 
 void
@@ -299,6 +323,43 @@ user_update_from_pwent (User          *user,
 
         user->system_account = !user_classify_is_human (user->uid, user->user_name, pwent->pw_shell, passwd);
 
+        if (!user->system_account &&
+            user_has_system_shell (user)) {
+
+                user->system_account = TRUE;
+                user->excluded = TRUE;
+                changed = TRUE;
+        }
+
+        g_object_thaw_notify (G_OBJECT (user));
+
+        if (changed)
+                accounts_user_emit_changed (ACCOUNTS_USER (user));
+}
+
+void
+user_update_from_config (User          *user,
+                         const Config  *cfg)
+{
+        gboolean changed = FALSE;
+
+        g_object_freeze_notify (G_OBJECT (user));
+
+        if (!user->system_account &&
+            (user->uid < cfg_get_min_uid (cfg))) {
+
+                user->system_account = TRUE;
+                user->excluded = TRUE;
+                changed = TRUE;
+        }
+
+        if (!user->excluded &&
+            cfg_get_user_excluded (cfg, user->user_name)) {
+
+                user->excluded = TRUE;
+                changed = TRUE;
+        }
+
         g_object_thaw_notify (G_OBJECT (user));
 
         if (changed)
@@ -358,7 +419,6 @@ user_update_from_keyfile (User     *user,
                 g_object_notify (G_OBJECT (user), "icon-file");
         }
 
-<<<<<<< HEAD
         if (g_key_file_has_key (keyfile, "User", "SystemAccount", NULL)) {
             gboolean system_account;
 
@@ -372,13 +432,11 @@ user_update_from_keyfile (User     *user,
         g_clear_pointer (&user->keyfile, g_key_file_unref);
         user->keyfile = g_key_file_ref (keyfile);
 
-=======
         b = g_key_file_get_boolean (keyfile, "User", "Excluded", &err);
         if (err == NULL) {
                 user->excluded = b;
         }
 
->>>>>>> Add excluded property to users
         g_object_thaw_notify (G_OBJECT (user));
 }
 
@@ -426,11 +484,8 @@ user_save_to_keyfile (User     *user,
         if (user->icon_file)
                 g_key_file_set_string (keyfile, "User", "Icon", user->icon_file);
 
-<<<<<<< HEAD
         g_key_file_set_boolean (keyfile, "User", "SystemAccount", user->system_account);
-=======
 	g_key_file_set_boolean (keyfile, "User", "Excluded", user->excluded);
->>>>>>> Add excluded property to users
 }
 
 static void
