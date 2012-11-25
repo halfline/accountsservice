@@ -437,6 +437,13 @@ load_entries (Daemon             *daemon,
                 /* freeze & update users not already in the new list */
                 g_object_freeze_notify (G_OBJECT (user));
                 user_update_from_pwent (user, pwent);
+                user_update_from_config (user, daemon->priv->cfg);
+
+                /* skip system accounts */
+                if (user_get_system_account(user)) {
+                        g_object_thaw_notify (G_OBJECT (user));
+                        continue;
+                }
 
                 g_hash_table_insert (users, g_strdup (user_get_user_name (user)), user);
                 g_debug ("loaded user: %s", user_get_user_name (user));
@@ -653,7 +660,6 @@ daemon_init (Daemon *daemon)
         daemon->priv = DAEMON_GET_PRIVATE (daemon);
 
         daemon->priv->extension_ifaces = daemon_read_extension_ifaces ();
-
         daemon->priv->users = create_users_hash_table ();
 
         daemon->priv->cfg = cfg_init();
@@ -971,7 +977,6 @@ finish_list_cached_users (gpointer user_data)
         const gchar *name;
         User *user;
         uid_t uid;
-        const gchar *shell;
 
         object_paths = g_ptr_array_new ();
 
@@ -982,6 +987,12 @@ finish_list_cached_users (gpointer user_data)
 
                 if (!user_classify_is_human (uid, name, shell, NULL)) {
                         g_debug ("user %s %ld excluded", name, (long) uid);
+                        continue;
+                }
+
+
+                if (user_get_excluded (user)) {
+                        g_debug ("user %s %ld is excluded", name, (long) uid);
                         continue;
                 }
 
