@@ -141,6 +141,20 @@ error_get_type (void)
 #define MAX_LOCAL_USERS 50
 #endif
 
+static void
+remove_cache_files (const gchar *user_name)
+{
+        gchar *filename;
+
+        filename = g_build_filename (USERDIR, user_name, NULL);
+        g_remove (filename);
+        g_free (filename);
+
+        filename = g_build_filename (ICONDIR, user_name, NULL);
+        g_remove (filename);
+        g_free (filename);
+}
+
 static struct passwd *
 entry_generator_fgetpwent (Daemon       *daemon,
                            GHashTable   *users,
@@ -1194,7 +1208,6 @@ daemon_uncache_user_authorized_cb (Daemon                *daemon,
                                    gpointer               data)
 {
         const gchar *user_name = data;
-        gchar       *filename;
         User        *user;
 
         sys_log (context, "uncache user '%s'", user_name);
@@ -1209,13 +1222,7 @@ daemon_uncache_user_authorized_cb (Daemon                *daemon,
         /* Always use the canonical user name looked up */
         user_name = user_get_user_name (user);
 
-        filename = g_build_filename (USERDIR, user_name, NULL);
-        g_remove (filename);
-        g_free (filename);
-
-        filename = g_build_filename (ICONDIR, user_name, NULL);
-        g_remove (filename);
-        g_free (filename);
+        remove_cache_files (user_name);
 
         user_set_cached (user, FALSE);
 
@@ -1257,7 +1264,6 @@ daemon_delete_user_authorized_cb (Daemon                *daemon,
 {
         DeleteUserData *ud = data;
         GError *error;
-        gchar *filename;
         struct passwd *pwent;
         const gchar *argv[6];
         User *user;
@@ -1282,13 +1288,7 @@ daemon_delete_user_authorized_cb (Daemon                *daemon,
                 }
         }
 
-        filename = g_build_filename (USERDIR, pwent->pw_name, NULL);
-        g_remove (filename);
-        g_free (filename);
-
-        filename = g_build_filename (ICONDIR, pwent->pw_name, NULL);
-        g_remove (filename);
-        g_free (filename);
+        remove_cache_files (pwent->pw_name);
 
         argv[0] = "/usr/sbin/userdel";
         if (ud->remove_files) {
