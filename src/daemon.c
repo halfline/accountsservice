@@ -294,13 +294,19 @@ entry_generator_cachedir (Daemon       *daemon,
                 g_free (filename);
 
                 if (regular) {
+                        errno = 0;
                         pwent = getpwnam (name);
-                        if (pwent == NULL) {
-                                g_debug ("user '%s' in cache dir but not present on system", name);
-                        } else {
+                        if (pwent != NULL) {
                                 *shadow_entry = getspnam (pwent->pw_name);
 
                                 return pwent;
+                        } else if (errno == 0) {
+                                g_debug ("user '%s' in cache dir but not present on system, removing", name);
+                                remove_cache_files (name);
+                        }
+                        else {
+                                g_warning ("failed to check if user '%s' in cache dir is present on system: %s",
+                                  name, g_strerror (errno));
                         }
                 }
         }
