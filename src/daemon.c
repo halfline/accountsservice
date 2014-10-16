@@ -1,4 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 8 -*-
+
  *
  * Copyright (C) 2009-2010 Red Hat, Inc.
  * Copyright (c) 2013 Canonical Limited
@@ -69,6 +70,7 @@ struct DaemonPrivate {
         GFileMonitor *gdm_monitor;
         GFileMonitor *wtmp_monitor;
 
+        GQueue *list_cached_users_requests;
         guint reload_id;
         guint autologin_id;
 
@@ -79,6 +81,7 @@ struct DaemonPrivate {
 typedef struct passwd * (* EntryGeneratorFunc) (GHashTable *, gpointer *);
 
 static void daemon_accounts_accounts_iface_init (AccountsAccountsIface *iface);
+static gboolean finish_list_cached_users (gpointer user_data);
 
 G_DEFINE_TYPE_WITH_CODE (Daemon, daemon, ACCOUNTS_TYPE_ACCOUNTS_SKELETON, G_IMPLEMENT_INTERFACE (ACCOUNTS_TYPE_ACCOUNTS, daemon_accounts_accounts_iface_init));
 
@@ -357,6 +360,11 @@ reload_users_timeout (Daemon *daemon)
         reload_users (daemon);
         daemon->priv->reload_id = 0;
 
+        g_queue_foreach (daemon->priv->list_cached_users_requests,
+                         (GFunc) finish_list_cached_users,
+                         NULL);
+        g_queue_clear (daemon->priv->list_cached_users_requests);
+
         return FALSE;
 }
 
@@ -511,6 +519,32 @@ setup_monitor (Daemon             *daemon,
         return monitor;
 }
 
+typedef struct {
+        Daemon *daemon;
+        GDBusMethodInvocation *context;
+} ListUserData;
+
+static ListUserData *
+list_user_data_new (Daemon                *daemon,
+                    GDBusMethodInvocation *context)
+{
+        ListUserData *data;
+
+        data = g_new0 (ListUserData, 1);
+
+        data->daemon = g_object_ref (daemon);
+        data->context = context;
+
+        return data;
+}
+
+static void
+list_user_data_free (ListUserData *data)
+{
+        g_object_unref (data->daemon);
+        g_free (data);
+}
+
 static void
 daemon_init (Daemon *daemon)
 {
@@ -537,6 +571,7 @@ daemon_init (Daemon *daemon)
         daemon->priv->gdm_monitor = setup_monitor (daemon,
                                                    PATH_GDM_CUSTOM,
                                                    on_gdm_monitor_changed);
+        daemon->priv->list_cached_users_requests = g_queue_new ();
 
         queue_reload_users (daemon);
         queue_reload_autologin (daemon);
@@ -550,6 +585,9 @@ daemon_finalize (GObject *object)
         g_return_if_fail (IS_DAEMON (object));
 
         daemon = DAEMON (object);
+
+        g_queue_free_full (daemon->priv->list_cached_users_requests,
+                           (GDestroyNotify) list_user_data_free);
 
         if (daemon->priv->bus_proxy != NULL)
                 g_object_unref (daemon->priv->bus_proxy);
@@ -748,33 +786,6 @@ daemon_find_user_by_name (AccountsAccounts      *accounts,
         return TRUE;
 }
 
-typedef struct {
-        Daemon *daemon;
-        GDBusMethodInvocation *context;
-} ListUserData;
-
-
-static ListUserData *
-list_user_data_new (Daemon                *daemon,
-                    GDBusMethodInvocation *context)
-{
-        ListUserData *data;
-
-        data = g_new0 (ListUserData, 1);
-
-        data->daemon = g_object_ref (daemon);
-        data->context = context;
-
-        return data;
-}
-
-static void
-list_user_data_free (ListUserData *data)
-{
-        g_object_unref (data->daemon);
-        g_free (data);
-}
-
 static gboolean
 finish_list_cached_users (gpointer user_data)
 {
@@ -823,7 +834,8 @@ daemon_list_cached_users (AccountsAccounts      *accounts,
 
         if (daemon->priv->reload_id > 0) {
                 /* reload in progress, wait a bit */
-                g_idle_add (finish_list_cached_users, data);
+                g_queue_push_tail (daemon->priv->list_cached_users_requests,
+                                   data);
         }
         else {
                 finish_list_cached_users (data);
