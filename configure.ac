@@ -1,5 +1,5 @@
 AC_INIT([AccountsService],[0.6.40])
-AM_INIT_AUTOMAKE(no-dist-gzip dist-xz tar-ustar foreign)
+AM_INIT_AUTOMAKE([1.11.2 no-dist-gzip dist-xz tar-ustar foreign])
 
 GETTEXT_PACKAGE=accounts-service
 AC_SUBST(GETTEXT_PACKAGE)
