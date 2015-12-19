@@ -2719,27 +2719,27 @@ act_user_manager_class_init (ActUserManagerClass *klass)
                                                                "Is loaded",
                                                                "Determines whether or not the manager object is loaded and ready to read from.",
                                                                FALSE,
-                                                               G_PARAM_READABLE));
+                                                               G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
         g_object_class_install_property (object_class,
                                          PROP_HAS_MULTIPLE_USERS,
                                          g_param_spec_boolean ("has-multiple-users",
                                                                "Has multiple users",
                                                                "Whether more than one normal user is present",
                                                                FALSE,
-                                                               G_PARAM_READABLE));
+                                                               G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
         g_object_class_install_property (object_class,
                                          PROP_INCLUDE_USERNAMES_LIST,
                                          g_param_spec_pointer ("include-usernames-list",
                                                                "Include usernames list",
                                                                "Usernames who are specifically included",
-                                                               G_PARAM_READWRITE));
+                                                               G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
         g_object_class_install_property (object_class,
                                          PROP_EXCLUDE_USERNAMES_LIST,
                                          g_param_spec_pointer ("exclude-usernames-list",
                                                                "Exclude usernames list",
                                                                "Usernames who are specifically excluded",
-                                                               G_PARAM_READWRITE));
+                                                               G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
         /**
          * ActUserManager::user-added:
