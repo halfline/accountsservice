@@ -2212,9 +2212,11 @@ static void
 give_up (ActUserManager                 *manager,
          ActUserManagerFetchUserRequest *request)
 {
+        if (request->type == ACT_USER_MANAGER_FETCH_USER_FROM_USERNAME_REQUEST)
+                g_debug ("ActUserManager: failed to load user %s", request->username);
+        else
+                g_debug ("ActUserManager: failed to load user %lu", (gulong) request->uid);
 
-        g_debug ("ActUserManager: account service unavailable, "
-                 "giving up");
         request->state = ACT_USER_MANAGER_GET_USER_STATE_UNFETCHED;
 
         if (request->user)
