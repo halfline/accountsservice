@@ -118,51 +118,12 @@ static void user_accounts_user_iface_init (AccountsUserIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE (User, user, ACCOUNTS_TYPE_USER_SKELETON, G_IMPLEMENT_INTERFACE (ACCOUNTS_TYPE_USER, user_accounts_user_iface_init));
 
-static gint
-account_type_from_pwent (struct passwd *pwent)
-{
-        struct group *grp;
-        gid_t wheel;
-        gid_t *groups;
-        gint ngroups;
-        gint i;
-
-        if (pwent->pw_uid == 0) {
-                g_debug ("user is root so account type is administrator");
-                return ACCOUNT_TYPE_ADMINISTRATOR;
-        }
-
-        grp = getgrnam (ADMIN_GROUP);
-        if (grp == NULL) {
-                g_debug (ADMIN_GROUP " group not found");
-                return ACCOUNT_TYPE_STANDARD;
-        }
-        wheel = grp->gr_gid;
-
-        ngroups = get_user_groups (pwent->pw_name, pwent->pw_gid, &groups);
-
-        for (i = 0; i < ngroups; i++) {
-                if (groups[i] == wheel) {
-                        g_free (groups);
-                        return ACCOUNT_TYPE_ADMINISTRATOR;
-                }
-        }
-
-        g_free (groups);
-
-        return ACCOUNT_TYPE_STANDARD;
-}
-
 void
 user_update_from_pwent (User          *user,
                         struct passwd *pwent)
 {
-#ifdef HAVE_SHADOW_H
-        struct spwd *spent;
-#endif
         gchar *real_name;
         gboolean changed;
-        const gchar *passwd;
         gboolean locked;
         PasswordMode mode;
         AccountType account_type;
@@ -224,7 +185,7 @@ user_update_from_pwent (User          *user,
         /* GID */
         user->gid = pwent->pw_gid;
 
-        account_type = account_type_from_pwent (pwent);
+        account_type = daemon_local_user_type (user->daemon, user->user_name, user->uid);
         if (account_type != user->account_type) {
                 user->account_type = account_type;
                 changed = TRUE;
@@ -257,19 +218,8 @@ user_update_from_pwent (User          *user,
                 g_object_notify (G_OBJECT (user), "shell");
         }
 
-        passwd = NULL;
-#ifdef HAVE_SHADOW_H
-        spent = getspnam (pwent->pw_name);
-        if (spent)
-                passwd = spent->sp_pwdp;
-#endif
-
-        if (passwd && passwd[0] == '!') {
-                locked = TRUE;
-        }
-        else {
-                locked = FALSE;
-        }
+        /* account type */
+        mode = daemon_local_password_type (user->daemon, user->user_name, pwent->pw_passwd, &locked);
 
         if (user->locked != locked) {
                 user->locked = locked;
@@ -277,28 +227,13 @@ user_update_from_pwent (User          *user,
                 g_object_notify (G_OBJECT (user), "locked");
         }
 
-        if (passwd == NULL || passwd[0] != 0) {
-                mode = PASSWORD_MODE_REGULAR;
-        }
-        else {
-                mode = PASSWORD_MODE_NONE;
-        }
-
-#ifdef HAVE_SHADOW_H
-        if (spent) {
-                if (spent->sp_lstchg == 0) {
-                        mode = PASSWORD_MODE_SET_AT_LOGIN;
-                }
-        }
-#endif
-
         if (user->password_mode != mode) {
                 user->password_mode = mode;
                 changed = TRUE;
                 g_object_notify (G_OBJECT (user), "password-mode");
         }
 
-        user->system_account = !user_classify_is_human (user->uid, user->user_name, pwent->pw_shell, passwd);
+        user->system_account = !user_classify_is_human (user->uid, user->user_name, pwent->pw_shell, pwent->pw_passwd);
 
         g_object_thaw_notify (G_OBJECT (user));
 

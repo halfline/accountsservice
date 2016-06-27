@@ -29,6 +29,10 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <pwd.h>
+#include <grp.h>
+#ifdef HAVE_SHADOW_H
+#include <shadow.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -46,6 +50,7 @@
 #include "util.h"
 
 #define PATH_PASSWD "/etc/passwd"
+#define PATH_GROUP "/etc/group"
 #define PATH_SHADOW "/etc/shadow"
 #define PATH_GROUP "/etc/group"
 #define PATH_GDM_CUSTOM "/etc/gdm/custom.conf"
@@ -59,6 +64,8 @@ struct DaemonPrivate {
         GDBusConnection *bus_connection;
 
         GHashTable *users;
+        GHashTable *shadow_users;
+        GList *admin_users;
 
         User *autologin;
 
@@ -131,6 +138,153 @@ error_get_type (void)
 #ifndef HAVE_FGETPWENT
 #include "fgetpwent.c"
 #endif
+
+typedef struct {
+        gboolean locked;
+        PasswordMode mode;
+}  DaemonUserPrivate;
+
+static PasswordMode
+password_type (const gchar *passwd,
+               gboolean    *locked)
+{
+        PasswordMode mode;
+        if (passwd && (passwd[0] == '!'|| passwd[0] == '*')) {
+                *locked = TRUE;
+        } else {
+                *locked = FALSE;
+        }
+
+        if (passwd[0] == 0) {
+                mode = PASSWORD_MODE_NONE;
+        }
+        else {
+                mode = PASSWORD_MODE_REGULAR;
+        }
+
+        return mode;
+}
+
+PasswordMode
+daemon_local_password_type (Daemon      *daemon,
+                            const gchar *name,
+                            const gchar *passwd,
+                            gboolean    *locked)
+{
+#ifdef HAVE_SHADOW_H
+        DaemonUserPrivate *user;
+        PasswordMode mode = PASSWORD_MODE_NONE;
+        *locked = TRUE;
+
+        user = g_hash_table_lookup (daemon->priv->shadow_users, name);
+        if (user) {
+                *locked = user->locked;
+                mode = user->mode;
+        }
+#else
+        mode = password_type (passwd, locked)
+#endif
+
+        return mode;
+}
+
+static void
+reload_shadow (Daemon *daemon)
+{
+#if HAVE_SHADOW_H
+        FILE *fp;
+        struct spwd *spent;
+
+        errno = 0;
+        fp = fopen (PATH_SHADOW, "r");
+        if (fp == NULL) {
+                g_warning ("Unable to open %s: %s", PATH_SHADOW, g_strerror (errno));
+                goto out;
+        }
+
+        g_hash_table_remove_all (daemon->priv->users);
+
+        while ((spent = fgetspent (fp)) != NULL) {
+                gboolean locked;
+                PasswordMode mode;
+                DaemonUserPrivate *user_data;
+
+                user_data = g_malloc0 (sizeof(DaemonUserPrivate));
+
+                mode = password_type ( spent->sp_pwdp, &locked);
+                if (spent->sp_lstchg == 0) {
+                        mode = PASSWORD_MODE_SET_AT_LOGIN;
+                }
+
+                user_data->mode = mode;
+                user_data->locked = locked;
+
+                g_hash_table_insert (daemon->priv->shadow_users,
+                                     g_strdup (spent->sp_pwdp),
+                                     user_data);
+
+        }
+
+out:
+        fclose (fp);
+
+#endif
+}
+
+gint
+daemon_local_user_type (Daemon      *daemon,
+                        const gchar *username,
+                        uid_t        uid)
+{
+
+        if (uid == 0) {
+                g_debug ("user is root so account type is administrator");
+                return ACCOUNT_TYPE_ADMINISTRATOR;
+        }
+
+        if( g_list_find (daemon->priv->admin_users, username))
+                return ACCOUNT_TYPE_ADMINISTRATOR;
+
+        return ACCOUNT_TYPE_STANDARD;
+}
+
+static void
+reload_group (Daemon *daemon)
+{
+        int i;
+        FILE *fp;
+        gid_t wheel;
+        struct group *grpent;
+
+        g_list_free_full (daemon->priv->admin_users, g_free);
+
+        grpent = getgrnam ("wheel");
+        if (grpent == NULL) {
+                g_debug ("wheel group not found");
+                return;
+        }
+        wheel = grpent->gr_gid;
+
+        fp = fopen (PATH_GROUP, "r");
+        if (fp == NULL) {
+                g_warning ("Unable to open %s: %s", PATH_GROUP, g_strerror (errno));
+                goto out;
+        }
+
+        /* using a list as no of admin users on a system is expected to be low */
+        while ((grpent = fgetgrent(fp)) != NULL ) {
+                if ( grpent->gr_gid == wheel) {
+                        for(i = 0; grpent->gr_mem[i] != NULL; i++) {
+                                if (! g_list_find (daemon->priv->admin_users, grpent->gr_mem[i])) {
+                                        daemon->priv->admin_users = g_list_prepend (daemon->priv->admin_users, g_strdup(grpent->gr_mem[i]));
+                                }
+                        }
+                }
+        }
+
+ out:
+        fclose (fp);
+}
 
 static struct passwd *
 entry_generator_fgetpwent (GHashTable *users,
@@ -294,6 +448,10 @@ reload_users (Daemon *daemon)
         GHashTableIter iter;
         gpointer name;
         User *user;
+
+        /* Update password type and mode of local users */
+        reload_group (daemon);
+        reload_shadow (daemon);
 
         /* Track the users that we saw during our (re)load */
         users = create_users_hash_table ();
@@ -518,6 +676,11 @@ daemon_init (Daemon *daemon)
         daemon->priv->extension_ifaces = daemon_read_extension_ifaces ();
 
         daemon->priv->users = create_users_hash_table ();
+        daemon->priv->admin_users = NULL;
+        daemon->priv->shadow_users = g_hash_table_new_full (g_str_hash,
+                                                            g_str_equal,
+                                                            g_free,
+                                                            g_free);
 
         daemon->priv->passwd_monitor = setup_monitor (daemon,
                                                       PATH_PASSWD,
@@ -552,6 +715,8 @@ daemon_finalize (GObject *object)
         if (daemon->priv->bus_connection != NULL)
                 g_object_unref (daemon->priv->bus_connection);
 
+        g_list_free_full (daemon->priv->admin_users, g_free);
+        g_hash_table_destroy (daemon->priv->shadow_users);
         g_hash_table_destroy (daemon->priv->users);
 
         g_hash_table_unref (daemon->priv->extension_ifaces);

@@ -123,6 +123,7 @@ user_classify_is_excluded_by_heuristics (const gchar *username,
         }
 
         if (password_hash != NULL) {
+#error need to move this check to DaemonUserPrivate in src/daemon.c
                 /* skip over the account-is-locked '!' prefix if present */
                 if (password_hash[0] == '!')
                     password_hash++;
