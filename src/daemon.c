@@ -29,6 +29,9 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <pwd.h>
+#ifdef HAVE_SHADOW_H
+#include <shadow.h>
+#endif
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -306,27 +309,71 @@ entry_generator_fgetpwent (GHashTable *users,
                            gpointer   *state)
 {
         struct passwd *pwent;
-        FILE *fp;
+        struct {
+                FILE *fp;
+                GHashTable *users;
+        } *generator_state;
 
         /* First iteration */
         if (*state == NULL) {
-                *state = fp = fopen (PATH_PASSWD, "r");
+                GHashTable *shadow_users = NULL;
+                FILE *fp;
+#ifdef HAVE_SHADOW_H
+                struct spwd *shadow_entry;
+
+                fp = fopen (PATH_SHADOW, "r");
                 if (fp == NULL) {
+                        g_warning ("Unable to open %s: %s", PATH_SHADOW, g_strerror (errno));
+                        return NULL;
+                }
+
+                shadow_users = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+                do {
+                        shadow_entry = fgetspent (fp);
+                        if (shadow_entry != NULL) {
+                                g_hash_table_add (shadow_users, g_strdup (shadow_entry->sp_namp));
+                        } else if (errno != EINTR) {
+                                break;
+                        }
+                } while (shadow_entry != NULL);
+
+                fclose (fp);
+
+                if (g_hash_table_size (shadow_users) == 0) {
+                        g_clear_pointer (&shadow_users, g_hash_table_unref);
+                        return NULL;
+                }
+#endif
+
+                fp = fopen (PATH_PASSWD, "r");
+                if (fp == NULL) {
+                        g_clear_pointer (&shadow_users, g_hash_table_unref);
                         g_warning ("Unable to open %s: %s", PATH_PASSWD, g_strerror (errno));
                         return NULL;
                 }
+
+                generator_state = g_malloc0 (sizeof (*generator_state));
+                generator_state->fp = fp;
+                generator_state->users = shadow_users;
+
+                *state = generator_state;
         }
 
         /* Every iteration */
-        fp = *state;
-        pwent = fgetpwent (fp);
+        generator_state = *state;
+        pwent = fgetpwent (generator_state->fp);
         if (pwent != NULL) {
-                return pwent;
+                if (!generator_state->users || g_hash_table_lookup (generator_state->users, pwent->pw_name))
+                        return pwent;
         }
 
         /* Last iteration */
-        fclose (fp);
+        fclose (generator_state->fp);
+        g_hash_table_unref (generator_state->users);
+        g_free (generator_state);
         *state = NULL;
+
         return NULL;
 }
 
