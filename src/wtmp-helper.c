@@ -107,9 +107,17 @@ wtmp_helper_entry_generator (GHashTable *users,
         while ((wtmp_entry = getutxent ())) {
                 UserAccounting    *accounting;
                 UserPreviousLogin *previous_login;
+                gboolean shutdown_or_reboot = FALSE;
 
-                if (wtmp_entry->ut_type == BOOT_TIME) {
-                        /* Set boot time for missing logout records */
+                if (g_str_equal (wtmp_entry->ut_line, "~")) {
+                        if (g_str_equal (wtmp_entry->ut_user, "shutdown") ||
+                            g_str_equal (wtmp_entry->ut_user, "reboot")) {
+                                shutdown_or_reboot = TRUE;
+                        }
+                }
+
+                if (wtmp_entry->ut_type == BOOT_TIME || shutdown_or_reboot) {
+                        /* Set shutdown, reboot, or boot time for missing logout records */
                         g_hash_table_iter_init (&iter, logout_hash);
                         while (g_hash_table_iter_next (&iter, &key, &value)) {
                                 previous_login = (UserPreviousLogin *) value;
