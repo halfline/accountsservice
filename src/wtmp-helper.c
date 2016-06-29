@@ -41,11 +41,6 @@ typedef struct {
         gint64  logout_time;
 } UserPreviousLogin;
 
-typedef struct {
-        GHashTable *login_hash;
-        GHashTable *logout_hash;
-} WTmpGeneratorState;
-
 static void
 user_previous_login_free (UserPreviousLogin *previous_login)
 {
@@ -73,10 +68,8 @@ wtmp_helper_start (void)
                 return TRUE;
 }
 
-struct passwd *
-wtmp_helper_entry_generator (GHashTable   *users,
-                             gpointer     *state,
-                             struct spwd **shadow_entry)
+void
+wtmp_helper_update_login_frequencies (GHashTable *users)
 {
         GHashTable *login_hash, *logout_hash;
         struct utmpx *wtmp_entry;
@@ -84,27 +77,16 @@ wtmp_helper_entry_generator (GHashTable   *users,
         gpointer key, value;
         struct passwd *pwent;
         User *user;
-        WTmpGeneratorState *state_data;
         GVariantBuilder *builder, *builder2;
         GList *l;
 
-        if (*state == NULL) {
-                /* First iteration */
-
-                if (!wtmp_helper_start ()) {
-                        return NULL;
-                }
-
-                *state = g_new (WTmpGeneratorState, 1);
-                state_data = *state;
-                state_data->login_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-                state_data->logout_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+        if (!wtmp_helper_start ()) {
+                return;
         }
 
-        /* Every iteration */
-        state_data = *state;
-        login_hash = state_data->login_hash;
-        logout_hash = state_data->logout_hash;
+        login_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+        logout_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
         while ((wtmp_entry = getutxent ())) {
                 UserAccounting    *accounting;
                 UserPreviousLogin *previous_login;
@@ -174,9 +156,6 @@ wtmp_helper_entry_generator (GHashTable   *users,
                 accounting->previous_logins = g_list_prepend (accounting->previous_logins, previous_login);
 
                 g_hash_table_insert (logout_hash, g_strdup (wtmp_entry->ut_line), previous_login);
-
-                *shadow_entry = getspnam (pwent->pw_name);
-                return pwent;
         }
 
         /* Last iteration */
@@ -214,9 +193,6 @@ wtmp_helper_entry_generator (GHashTable   *users,
 
         g_hash_table_unref (login_hash);
         g_hash_table_unref (logout_hash);
-        g_free (state_data);
-        *state = NULL;
-        return NULL;
 }
 
 const gchar *
@@ -226,14 +202,6 @@ wtmp_helper_get_path_for_monitor (void)
 }
 
 #else /* HAVE_UTMPX_H */
-
-struct passwd *
-wtmp_helper_entry_generator (GHashTable   *users,
-                             gpointer     *state,
-                             struct spwd **shadow_entry)
-{
-        return NULL;
-}
 
 const gchar *
 wtmp_helper_get_path_for_monitor (void)

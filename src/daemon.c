@@ -389,8 +389,9 @@ reload_users (Daemon *daemon)
                 g_hash_table_add (local, name);
 
         /* Now add/update users from other sources, possibly non-local */
-        load_entries (daemon, users, wtmp_helper_entry_generator);
         load_entries (daemon, users, entry_generator_cachedir);
+
+        wtmp_helper_update_login_frequencies (users);
 
         /* Mark which users are local, which are not */
         g_hash_table_iter_init (&iter, users);
