@@ -85,7 +85,7 @@ struct DaemonPrivate {
         PolkitAuthority *authority;
 };
 
-typedef struct passwd * (* EntryGeneratorFunc) (GHashTable *, gpointer *);
+typedef struct passwd * (* EntryGeneratorFunc) (GHashTable *, gpointer *, struct spwd **shadow_entry);
 
 static void daemon_accounts_accounts_iface_init (AccountsAccountsIface *iface);
 
@@ -165,8 +165,9 @@ user_previous_login_free (UserPreviousLogin *previous_login)
 }
 
 static struct passwd *
-entry_generator_wtmp (GHashTable *users,
-                      gpointer   *state)
+entry_generator_wtmp (GHashTable   *users,
+                      gpointer     *state,
+                      struct spwd **spent)
 {
         GHashTable *login_hash, *logout_hash;
         struct utmpx *wtmp_entry;
@@ -259,6 +260,7 @@ entry_generator_wtmp (GHashTable *users,
                 accounting->previous_logins = g_list_prepend (accounting->previous_logins, previous_login);
 
                 g_hash_table_insert (logout_hash, g_strdup (wtmp_entry->ut_line), previous_login);
+                *spent = getspnam (pwent->pw_name);
 
                 return pwent;
         }
@@ -305,10 +307,17 @@ entry_generator_wtmp (GHashTable *users,
 #endif /* HAVE_UTMPX_H */
 
 static struct passwd *
-entry_generator_fgetpwent (GHashTable *users,
-                           gpointer   *state)
+entry_generator_fgetpwent (GHashTable   *users,
+                           gpointer     *state,
+                           struct spwd **spent)
 {
         struct passwd *pwent;
+
+        struct {
+                struct spwd spbuf;
+                char buf[1024];
+        } *shadow_entry_buffers;
+
         struct {
                 FILE *fp;
                 GHashTable *users;
@@ -318,7 +327,6 @@ entry_generator_fgetpwent (GHashTable *users,
         if (*state == NULL) {
                 GHashTable *shadow_users = NULL;
                 FILE *fp;
-#ifdef HAVE_SHADOW_H
                 struct spwd *shadow_entry;
 
                 fp = fopen (PATH_SHADOW, "r");
@@ -327,14 +335,22 @@ entry_generator_fgetpwent (GHashTable *users,
                         return NULL;
                 }
 
-                shadow_users = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+                shadow_users = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 
                 do {
-                        shadow_entry = fgetspent (fp);
-                        if (shadow_entry != NULL) {
-                                g_hash_table_add (shadow_users, g_strdup (shadow_entry->sp_namp));
-                        } else if (errno != EINTR) {
-                                break;
+                        int ret = 0;
+
+                        shadow_entry_buffers = g_malloc0 (sizeof (*shadow_entry_buffers));
+
+                        ret = fgetspent_r (fp, &shadow_entry_buffers->spbuf, shadow_entry_buffers->buf, sizeof (shadow_entry_buffers->buf), &shadow_entry);
+                        if (ret == 0) {
+                                g_hash_table_insert (shadow_users, g_strdup (shadow_entry->sp_namp), shadow_entry_buffers);
+                        } else {
+                                g_free (shadow_entry_buffers);
+
+                                if (errno != EINTR) {
+                                        break;
+                                }
                         }
                 } while (shadow_entry != NULL);
 
@@ -344,7 +360,6 @@ entry_generator_fgetpwent (GHashTable *users,
                         g_clear_pointer (&shadow_users, g_hash_table_unref);
                         return NULL;
                 }
-#endif
 
                 fp = fopen (PATH_PASSWD, "r");
                 if (fp == NULL) {
@@ -364,8 +379,12 @@ entry_generator_fgetpwent (GHashTable *users,
         generator_state = *state;
         pwent = fgetpwent (generator_state->fp);
         if (pwent != NULL) {
-                if (!generator_state->users || g_hash_table_lookup (generator_state->users, pwent->pw_name))
+                shadow_entry_buffers = g_hash_table_lookup (generator_state->users, pwent->pw_name);
+
+                if (shadow_entry_buffers != NULL) {
+                        *spent = &shadow_entry_buffers->spbuf;
                         return pwent;
+                }
         }
 
         /* Last iteration */
@@ -378,8 +397,9 @@ entry_generator_fgetpwent (GHashTable *users,
 }
 
 static struct passwd *
-entry_generator_cachedir (GHashTable *users,
-                          gpointer   *state)
+entry_generator_cachedir (GHashTable   *users,
+                          gpointer     *state,
+                          struct spwd **shadow_entry)
 {
         struct passwd *pwent;
         const gchar *name;
@@ -421,10 +441,13 @@ entry_generator_cachedir (GHashTable *users,
 
                 if (regular) {
                         pwent = getpwnam (name);
-                        if (pwent == NULL)
+                        if (pwent == NULL) {
                                 g_debug ("user '%s' in cache dir but not present on system", name);
-                        else
+                        } else {
+                                *shadow_entry = getspnam (pwent->pw_name);
+
                                 return pwent;
+                        }
                 }
         }
 
@@ -453,17 +476,19 @@ load_entries (Daemon             *daemon,
 {
         gpointer generator_state = NULL;
         struct passwd *pwent;
+        struct spwd *spent = NULL;
         User *user = NULL;
 
         g_assert (entry_generator != NULL);
 
         for (;;) {
-                pwent = entry_generator (users, &generator_state);
+                spent = NULL;
+                pwent = entry_generator (users, &generator_state, &spent);
                 if (pwent == NULL)
                         break;
 
                 /* Skip system users... */
-                if (!user_classify_is_human (pwent->pw_uid, pwent->pw_name, pwent->pw_shell, NULL)) {
+                if (!user_classify_is_human (pwent->pw_uid, pwent->pw_name, pwent->pw_shell, spent? spent->sp_pwdp : NULL)) {
                         g_debug ("skipping user: %s", pwent->pw_name);
                         continue;
                 }
@@ -482,7 +507,7 @@ load_entries (Daemon             *daemon,
 
                 /* freeze & update users not already in the new list */
                 g_object_freeze_notify (G_OBJECT (user));
-                user_update_from_pwent (user, pwent);
+                user_update_from_pwent (user, pwent, spent);
 
                 g_hash_table_insert (users, g_strdup (user_get_user_name (user)), user);
                 g_debug ("loaded user: %s", user_get_user_name (user));
@@ -854,12 +879,13 @@ throw_error (GDBusMethodInvocation *context,
 
 static User *
 add_new_user_for_pwent (Daemon        *daemon,
-                        struct passwd *pwent)
+                        struct passwd *pwent,
+                        struct spwd   *spent)
 {
         User *user;
 
         user = user_new (daemon, pwent->pw_uid);
-        user_update_from_pwent (user, pwent);
+        user_update_from_pwent (user, pwent, spent);
         user_register (user);
 
         g_hash_table_insert (daemon->priv->users,
@@ -886,8 +912,11 @@ daemon_local_find_user_by_id (Daemon *daemon,
 
         user = g_hash_table_lookup (daemon->priv->users, pwent->pw_name);
 
-        if (user == NULL)
-                user = add_new_user_for_pwent (daemon, pwent);
+        if (user == NULL) {
+                struct spwd *spent;
+                spent = getspnam (pwent->pw_name);
+                user = add_new_user_for_pwent (daemon, pwent, spent);
+        }
 
         return user;
 }
@@ -907,8 +936,11 @@ daemon_local_find_user_by_name (Daemon      *daemon,
 
         user = g_hash_table_lookup (daemon->priv->users, pwent->pw_name);
 
-        if (user == NULL)
-                user = add_new_user_for_pwent (daemon, pwent);
+        if (user == NULL) {
+                struct spwd *spent;
+                spent = getspnam (pwent->pw_name);
+                user = add_new_user_for_pwent (daemon, pwent, spent);
+        }
 
         return user;
 }
