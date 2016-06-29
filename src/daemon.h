@@ -76,13 +76,6 @@ User *daemon_local_find_user_by_id   (Daemon                *daemon,
 User *daemon_local_find_user_by_name (Daemon                *daemon,
                                       const gchar           *name);
 User *daemon_local_get_automatic_login_user (Daemon         *daemon);
-gint daemon_local_user_type          (Daemon                *daemon,
-                                      const gchar           *username,
-                                      uid_t                  uid);
-PasswordMode  daemon_local_password_type (Daemon            *daemon,
-                                          const gchar       *name,
-                                          const gchar       *passwd,
-                                          gboolean          *locked);
 
 typedef void (*AuthorizedCallback)   (Daemon                *daemon,
                                       User                  *user,
