@@ -164,10 +164,8 @@ user_previous_login_free (UserPreviousLogin *previous_login)
         g_free (previous_login);
 }
 
-static struct passwd *
-entry_generator_wtmp (GHashTable   *users,
-                      gpointer     *state,
-                      struct spwd **spent)
+static void
+wtmp_update_login_frequencies (GHashTable *users)
 {
         GHashTable *login_hash, *logout_hash;
         struct utmpx *wtmp_entry;
@@ -175,30 +173,20 @@ entry_generator_wtmp (GHashTable   *users,
         gpointer key, value;
         struct passwd *pwent;
         User *user;
-        WTmpGeneratorState *state_data;
         GVariantBuilder *builder, *builder2;
         GList *l;
 
-        if (*state == NULL) {
-                /* First iteration */
 #ifdef UTXDB_LOG
-                if (setutxdb (UTXDB_LOG, NULL) != 0) {
-                        return NULL;
-                }
-#else
-                utmpxname (PATH_WTMP);
-                setutxent ();
-#endif
-                *state = g_new (WTmpGeneratorState, 1);
-                state_data = *state;
-                state_data->login_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
-                state_data->logout_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+        if (setutxdb (UTXDB_LOG, NULL) != 0) {
+                return NULL;
         }
+#else
+        utmpxname (PATH_WTMP);
+        setutxent ();
+#endif
 
-        /* Every iteration */
-        state_data = *state;
-        login_hash = state_data->login_hash;
-        logout_hash = state_data->logout_hash;
+        login_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+        logout_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
         while ((wtmp_entry = getutxent ())) {
                 UserAccounting    *accounting;
                 UserPreviousLogin *previous_login;
@@ -260,12 +248,8 @@ entry_generator_wtmp (GHashTable   *users,
                 accounting->previous_logins = g_list_prepend (accounting->previous_logins, previous_login);
 
                 g_hash_table_insert (logout_hash, g_strdup (wtmp_entry->ut_line), previous_login);
-                *spent = getspnam (pwent->pw_name);
-
-                return pwent;
         }
 
-        /* Last iteration */
         endutxent ();
 
         g_hash_table_iter_init (&iter, login_hash);
@@ -300,9 +284,6 @@ entry_generator_wtmp (GHashTable   *users,
 
         g_hash_table_unref (login_hash);
         g_hash_table_unref (logout_hash);
-        g_free (state_data);
-        *state = NULL;
-        return NULL;
 }
 #endif /* HAVE_UTMPX_H */
 
@@ -560,10 +541,11 @@ reload_users (Daemon *daemon)
                 g_hash_table_add (local, name);
 
         /* Now add/update users from other sources, possibly non-local */
-#ifdef HAVE_UTMPX_H
-        load_entries (daemon, users, entry_generator_wtmp);
-#endif
         load_entries (daemon, users, entry_generator_cachedir);
+
+#ifdef HAVE_UTMPX_H
+        wtmp_update_login_frequencies (users);
+#endif
 
         /* Mark which users are local, which are not */
         g_hash_table_iter_init (&iter, users);
