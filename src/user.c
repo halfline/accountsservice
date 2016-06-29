@@ -122,9 +122,6 @@ static gint
 account_type_from_pwent (struct passwd *pwent)
 {
         struct group *grp;
-        gid_t wheel;
-        gid_t *groups;
-        gint ngroups;
         gint i;
 
         if (pwent->pw_uid == 0) {
@@ -137,18 +134,12 @@ account_type_from_pwent (struct passwd *pwent)
                 g_debug (ADMIN_GROUP " group not found");
                 return ACCOUNT_TYPE_STANDARD;
         }
-        wheel = grp->gr_gid;
 
-        ngroups = get_user_groups (pwent->pw_name, pwent->pw_gid, &groups);
-
-        for (i = 0; i < ngroups; i++) {
-                if (groups[i] == wheel) {
-                        g_free (groups);
+        for (i = 0; grp->gr_mem[i] != NULL; i++) {
+                if (g_strcmp0 (grp->gr_mem[i], pwent->pw_name) == 0) {
                         return ACCOUNT_TYPE_ADMINISTRATOR;
                 }
         }
-
-        g_free (groups);
 
         return ACCOUNT_TYPE_STANDARD;
 }
