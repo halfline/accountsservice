@@ -23,9 +23,11 @@
 
 #include <glib.h>
 #include <pwd.h>
+#include <shadow.h>
 
 const gchar *           wtmp_helper_get_path_for_monitor                (void);
-struct passwd *         wtmp_helper_entry_generator                     (GHashTable *users,
-                                                                         gpointer   *state);
+struct passwd *         wtmp_helper_entry_generator                     (GHashTable   *users,
+                                                                         gpointer     *state,
+                                                                         struct spwd **shadow_entry);
 
 #endif /* __WTMP_HELPER_H__ */

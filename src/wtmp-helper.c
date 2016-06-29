@@ -74,8 +74,9 @@ wtmp_helper_start (void)
 }
 
 struct passwd *
-wtmp_helper_entry_generator (GHashTable *users,
-                             gpointer   *state)
+wtmp_helper_entry_generator (GHashTable   *users,
+                             gpointer     *state,
+                             struct spwd **shadow_entry)
 {
         GHashTable *login_hash, *logout_hash;
         struct utmpx *wtmp_entry;
@@ -174,6 +175,7 @@ wtmp_helper_entry_generator (GHashTable *users,
 
                 g_hash_table_insert (logout_hash, g_strdup (wtmp_entry->ut_line), previous_login);
 
+                *shadow_entry = getspnam (pwent->pw_name);
                 return pwent;
         }
 
@@ -226,8 +228,9 @@ wtmp_helper_get_path_for_monitor (void)
 #else /* HAVE_UTMPX_H */
 
 struct passwd *
-wtmp_helper_entry_generator (GHashTable *users,
-                             gpointer   *state)
+wtmp_helper_entry_generator (GHashTable   *users,
+                             gpointer     *state,
+                             struct spwd **shadow_entry)
 {
         return NULL;
 }

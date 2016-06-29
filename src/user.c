@@ -146,11 +146,9 @@ account_type_from_pwent (struct passwd *pwent)
 
 void
 user_update_from_pwent (User          *user,
-                        struct passwd *pwent)
+                        struct passwd *pwent,
+                        struct spwd   *spent)
 {
-#ifdef HAVE_SHADOW_H
-        struct spwd *spent;
-#endif
         gchar *real_name;
         gboolean changed;
         const gchar *passwd;
@@ -249,11 +247,8 @@ user_update_from_pwent (User          *user,
         }
 
         passwd = NULL;
-#ifdef HAVE_SHADOW_H
-        spent = getspnam (pwent->pw_name);
         if (spent)
                 passwd = spent->sp_pwdp;
-#endif
 
         if (passwd && passwd[0] == '!') {
                 locked = TRUE;
@@ -275,13 +270,11 @@ user_update_from_pwent (User          *user,
                 mode = PASSWORD_MODE_NONE;
         }
 
-#ifdef HAVE_SHADOW_H
         if (spent) {
                 if (spent->sp_lstchg == 0) {
                         mode = PASSWORD_MODE_SET_AT_LOGIN;
                 }
         }
-#endif
 
         if (user->password_mode != mode) {
                 user->password_mode = mode;
