@@ -135,6 +135,10 @@ error_get_type (void)
 #include "fgetpwent.c"
 #endif
 
+#ifndef MAX_LOCAL_USERS
+#define MAX_LOCAL_USERS 50
+#endif
+
 static struct passwd *
 entry_generator_fgetpwent (GHashTable   *users,
                            gpointer     *state,
@@ -206,13 +210,16 @@ entry_generator_fgetpwent (GHashTable   *users,
 
         /* Every iteration */
         generator_state = *state;
-        pwent = fgetpwent (generator_state->fp);
-        if (pwent != NULL) {
-                shadow_entry_buffers = g_hash_table_lookup (generator_state->users, pwent->pw_name);
 
-                if (shadow_entry_buffers != NULL) {
-                        *spent = &shadow_entry_buffers->spbuf;
-                        return pwent;
+        if (g_hash_table_size (users) < MAX_LOCAL_USERS) {
+                pwent = fgetpwent (generator_state->fp);
+                if (pwent != NULL) {
+                        shadow_entry_buffers = g_hash_table_lookup (generator_state->users, pwent->pw_name);
+
+                        if (shadow_entry_buffers != NULL) {
+                            *spent = &shadow_entry_buffers->spbuf;
+                            return pwent;
+                        }
                 }
         }
 
