@@ -201,7 +201,7 @@ entry_generator_fgetpwent (GHashTable   *users,
                         return NULL;
                 }
 
-                generator_state = g_malloc0 (*sizeof (generator_state));
+                generator_state = g_malloc0 (sizeof (*generator_state));
                 generator_state->fp = fp;
                 generator_state->users = shadow_users;
 
