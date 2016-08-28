@@ -17,6 +17,16 @@
     </defaults>
   </action>
 
+  <action id="org.freedesktop.accounts.change-own-password">
+    <_description>Change your own user password</_description>
+    <_message>Authentication is required to change your own user password</_message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+
   <action id="org.freedesktop.accounts.user-administration">
     <_description>Manage user accounts</_description>
     <_message>Authentication is required to change user data</_message>

@@ -1878,13 +1878,22 @@ user_set_password_mode (AccountsUser          *auser,
 {
         User *user = (User*)auser;
         const gchar *action_id;
+        gint uid;
 
         if (mode < 0 || mode > PASSWORD_MODE_LAST) {
                 throw_error (context, ERROR_FAILED, "unknown password mode: %d", mode);
                 return FALSE;
         }
 
-        action_id = "org.freedesktop.accounts.user-administration";
+        if (!get_caller_uid (context, &uid)) {
+                throw_error (context, ERROR_FAILED, "identifying caller failed");
+                return FALSE;
+        }
+
+        if (user->uid == (uid_t) uid)
+                action_id = "org.freedesktop.accounts.change-own-password";
+        else
+                action_id = "org.freedesktop.accounts.user-administration";
 
         daemon_local_check_auth (user->daemon,
                                  user,
@@ -1969,15 +1978,27 @@ user_set_password (AccountsUser          *auser,
 {
         User *user = (User*)auser;
         gchar **data;
+        const gchar *action_id;
+        gint uid;
+
+        if (!get_caller_uid (context, &uid)) {
+                throw_error (context, ERROR_FAILED, "identifying caller failed");
+                return FALSE;
+        }
 
         data = g_new (gchar *, 3);
         data[0] = g_strdup (password);
         data[1] = g_strdup (hint);
         data[2] = NULL;
 
+        if (user->uid == (uid_t) uid)
+                action_id = "org.freedesktop.accounts.change-own-password";
+        else
+                action_id = "org.freedesktop.accounts.user-administration";
+
         daemon_local_check_auth (user->daemon,
                                  user,
-                                 "org.freedesktop.accounts.user-administration",
+                                 action_id,
                                  TRUE,
                                  user_change_password_authorized_cb,
                                  context,
