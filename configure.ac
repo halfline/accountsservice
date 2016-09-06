@@ -213,6 +213,11 @@ if test "$wtmpx_found" = "no" ; then
 fi
 AC_DEFINE_UNQUOTED([PATH_WTMP], [$wtmpx_found], [Path to wtmpx file])
 
+AC_CHECK_LIB(c, getusershell, have_getusershell=yes, have_getusershell=no)
+if test x$have_getusershell = xyes; then
+  AC_DEFINE(HAVE_GETUSERSHELL, 1, [Define i getusershell() is available])
+fi
+
 dnl ---------------------------------------------------------------------------
 dnl - gtk-doc Documentation
 dnl ---------------------------------------------------------------------------
