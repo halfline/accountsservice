@@ -187,6 +187,11 @@ AC_SUBST(WARN_CFLAGS)
 
 AC_CHECK_HEADERS([shadow.h utmpx.h])
 
+AC_CHECK_LIB(c, getusershell, have_getusershell=yes, have_getusershell=no)
+if test x$have_getusershell = xyes; then
+  AC_DEFINE(HAVE_GETUSERSHELL, 1, [Define i getusershell() is available])
+fi
+
 dnl ---------------------------------------------------------------------------
 dnl - gtk-doc Documentation
 dnl ---------------------------------------------------------------------------
