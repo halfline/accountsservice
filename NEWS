@@ -1,3 +1,10 @@
+Changes in 0.6.43
+=================
+* Fix logout times in login-history
+* increase performance in large deployments
+* memory leak fix
+* exclude nologin users from user list
+
 Changes in 0.6.42
 =================
 * wtmp fixes on solaris
