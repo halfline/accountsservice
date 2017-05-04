@@ -110,6 +110,7 @@ struct User {
         gboolean      automatic_login;
         gboolean      system_account;
         gboolean      local_account;
+        gboolean      cached;
 
         guint        *extension_ids;
         guint         n_extension_ids;
@@ -366,6 +367,7 @@ user_update_from_keyfile (User     *user,
 
         g_clear_pointer (&user->keyfile, g_key_file_unref);
         user->keyfile = g_key_file_ref (keyfile);
+        user_set_cached (user, TRUE);
 
         g_object_thaw_notify (G_OBJECT (user));
 }
@@ -415,6 +417,8 @@ user_save_to_keyfile (User     *user,
                 g_key_file_set_string (keyfile, "User", "Icon", user->icon_file);
 
         g_key_file_set_boolean (keyfile, "User", "SystemAccount", user->system_account);
+
+        user_set_cached (user, TRUE);
 }
 
 static void
@@ -835,6 +839,19 @@ const gchar *
 user_get_shell(User *user)
 {
 	return user->shell;
+}
+
+gboolean
+user_get_cached (User *user)
+{
+        return user->cached;
+}
+
+void
+user_set_cached (User     *user,
+                 gboolean  cached)
+{
+        user->cached = cached;
 }
 
 static void
