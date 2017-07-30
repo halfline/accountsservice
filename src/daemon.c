@@ -1096,11 +1096,20 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
         argv[2] = "-c";
         argv[3] = cd->real_name;
         if (cd->account_type == ACCOUNT_TYPE_ADMINISTRATOR) {
+                char *admin_groups;
+
+                admin_groups = g_strdup (ADMIN_GROUP);
+                if (EXTRA_ADMIN_GROUPS != NULL && EXTRA_ADMIN_GROUPS[0] != '\0')
+                        admin_groups = g_strconcat (admin_groups, ",",
+                                                    EXTRA_ADMIN_GROUPS, NULL);
+
                 argv[4] = "-G";
-                argv[5] = ADMIN_GROUP;
+                argv[5] = admin_groups;
                 argv[6] = "--";
                 argv[7] = cd->user_name;
                 argv[8] = NULL;
+
+                g_free (admin_groups);
         }
         else if (cd->account_type == ACCOUNT_TYPE_STANDARD) {
                 argv[4] = "--";

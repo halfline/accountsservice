@@ -1689,6 +1689,7 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
         gid_t *groups;
         gint ngroups;
         GString *str;
+        char **extra_admin_groups;
         gid_t admin_gid;
         struct group *grp;
         gint i;
@@ -1716,7 +1717,19 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
                 }
                 switch (account_type) {
                 case ACCOUNT_TYPE_ADMINISTRATOR:
+                        extra_admin_groups = g_strsplit (EXTRA_ADMIN_GROUPS, ",", 0);
+
+                        for (i = 0; extra_admin_groups[i] != NULL; i++) {
+                                struct group *extra_group;
+                                extra_group = getgrnam (extra_admin_groups[i]);
+                                if (extra_group == NULL || extra_group->gr_gid == admin_gid)
+                                        continue;
+
+                                g_string_append_printf (str, "%d,", extra_group->gr_gid);
+                        }
+
                         g_string_append_printf (str, "%d", admin_gid);
+                        g_strfreev (extra_admin_groups);
                         break;
                 case ACCOUNT_TYPE_STANDARD:
                 default:

@@ -54,6 +54,11 @@ AS_IF([test x$enable_admin_group = xauto], [
 ])
 AC_DEFINE_UNQUOTED([ADMIN_GROUP], ["$enable_admin_group"], [Define to the group for administrator users])
 
+AC_ARG_WITH(extra-admin-groups,
+        [AS_HELP_STRING([--with-extra-admin-groups],[Comma-separated list of extra groups that administrator users are part of])],
+        ,with_extra_admin_groups="")
+AC_DEFINE_UNQUOTED([EXTRA_ADMIN_GROUPS], ["$with_extra_admin_groups"], [Define to the list of extra groups administrator users are part of])
+
 AC_ARG_ENABLE(user-heuristics,
         [AS_HELP_STRING([--enable-user-heuristics],[Enable heuristics for guessing system vs. human users in the range 500-minimum-uid])],
         [if test "$enableval" = yes; then
@@ -376,6 +381,7 @@ else
         AC_MSG_NOTICE([** DocBook documentation build disabled])
 fi
         AC_MSG_NOTICE([** Administrator group: $enable_admin_group])
+        AC_MSG_NOTICE([** Extra administrator groups: $with_extra_admin_groups])
 echo
 
 
