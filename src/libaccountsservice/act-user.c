@@ -1544,6 +1544,7 @@ _act_user_load_from_user (ActUser    *user,
         user->login_time = user_to_copy->login_time;
         g_object_notify (G_OBJECT (user), "login-time");
 
+        g_clear_pointer (&user->login_history, g_variant_unref);
         user->login_history = user_to_copy->login_history ? g_variant_ref (user_to_copy->login_history) : NULL;
         g_object_notify (G_OBJECT (user), "login-history");
 
