@@ -1207,7 +1207,7 @@ act_user_is_loaded (ActUser *user)
 }
 
 /**
- * act_user_get_login_history:
+ * act_user_get_password_expiration_policy:
  * @user: the user object to query.
  * @expiration_time: time users passwor expires
  * @last_change_time,
