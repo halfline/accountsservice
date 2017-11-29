@@ -1209,14 +1209,14 @@ act_user_is_loaded (ActUser *user)
 /**
  * act_user_get_password_expiration_policy:
  * @user: the user object to query.
- * @expiration_time: time users passwor expires
- * @last_change_time,
- * @min_days_between_changes,
- * @max_days_between_changes,
- * @days_to_warn,
- * @days_after_expiration_until_lock)
+ * @expiration_time: location to write time users password expires
+ * @last_change_time: location to write time users password was last changed.
+ * @min_days_between_changes: location to write minimum number of days needed between password changes.
+ * @max_days_between_changes: location to write maximum number of days password can stay unchanged.
+ * @days_to_warn: location to write number of days to warn user password is about to expire.
+ * @days_after_expiration_until_lock: location to write number of days account will be locked after password expires.
  *
- * Assigns a new email to @user.
+ * Get the password expiration policy for a user.
  *
  * Note this function is synchronous and ignores errors.
  **/
