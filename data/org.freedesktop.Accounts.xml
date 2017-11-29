@@ -71,7 +71,6 @@
       <arg name="name" direction="in" type="s">
         <doc:doc><doc:summary>The username for the new user</doc:summary></doc:doc>
       </arg>
-      <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
       <arg name="fullname" direction="in" type="s">
         <doc:doc><doc:summary>The real name for the new user</doc:summary></doc:doc>
       </arg>
