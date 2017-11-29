@@ -516,7 +516,7 @@ set_is_loaded (ActUser  *user,
  *
  * Retrieves the ID of @user.
  *
- * Returns: (transfer none): a pointer to an array of characters which must not be modified or
+ * Returns: a pointer to an array of characters which must not be modified or
  *  freed, or %NULL.
  **/
 
@@ -743,7 +743,7 @@ act_user_get_login_frequency (ActUser *user)
  *
  * Returns the last login time for @user.
  *
- * Returns: (transfer none): the login time
+ * Returns: the login time
  */
 gint64
 act_user_get_login_time (ActUser *user)
@@ -934,7 +934,7 @@ act_user_is_system_account (ActUser *user)
  *
  * Retrieves whether the user is a local account or not.
  *
- * Returns: (transfer none): %TRUE if the user is local
+ * Returns: %TRUE if the user is local
  **/
 gboolean
 act_user_is_local_account (ActUser   *user)
@@ -953,7 +953,7 @@ act_user_is_local_account (ActUser   *user)
  *
  * Retrieves whether the user is nonexistent or not.
  *
- * Returns: (transfer none): %TRUE if the user is nonexistent
+ * Returns: %TRUE if the user is nonexistent
  **/
 gboolean
 act_user_is_nonexistent (ActUser   *user)
