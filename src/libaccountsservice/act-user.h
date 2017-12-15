@@ -120,6 +120,10 @@ void           act_user_set_locked                (ActUser    *user,
 void           act_user_set_automatic_login       (ActUser   *user,
                                                    gboolean  enabled);
 
+#if GLIB_CHECK_VERSION(2, 44, 0)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (ActUser, g_object_unref)
+#endif
+
 G_END_DECLS
 
 #endif /* __ACT_USER_H__ */

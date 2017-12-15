@@ -145,6 +145,10 @@ gboolean            act_user_manager_delete_user_finish    (ActUserManager     *
                                                             GAsyncResult       *result,
                                                             GError            **error);
 
+#if GLIB_CHECK_VERSION(2, 44, 0)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (ActUserManager, g_object_unref)
+#endif
+
 G_END_DECLS
 
 #endif /* __ACT_USER_MANAGER_H__ */
