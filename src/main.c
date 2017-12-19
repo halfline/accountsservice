@@ -108,7 +108,7 @@ on_log_debug (const gchar *log_domain,
               const gchar *message,
               gpointer user_data)
 {
-        GString *string;
+        g_autoptr(GString) string = NULL;
         const gchar *progname;
         int ret G_GNUC_UNUSED;
 
@@ -121,8 +121,6 @@ on_log_debug (const gchar *log_domain,
                                 message ? message : "(NULL) message");
 
         ret = write (1, string->str, string->len);
-
-        g_string_free (string, TRUE);
 }
 
 static void
@@ -148,8 +146,7 @@ on_signal_quit (gpointer data)
 int
 main (int argc, char *argv[])
 {
-        GError *error;
-        gint ret;
+        g_autoptr(GError) error = NULL;
         GBusNameOwnerFlags flags;
         GOptionContext *context;
         static gboolean replace;
@@ -162,9 +159,6 @@ main (int argc, char *argv[])
                 { NULL }
         };
 
-        ret = 1;
-        error = NULL;
-
         setlocale (LC_ALL, "");
         bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
 
@@ -174,7 +168,7 @@ main (int argc, char *argv[])
 
         if (!g_setenv ("GIO_USE_VFS", "local", TRUE)) {
                 g_warning ("Couldn't set GIO_USE_GVFS");
-                goto out;
+                return EXIT_FAILURE;
         }
 
         context = g_option_context_new ("");
@@ -184,15 +178,13 @@ main (int argc, char *argv[])
         error = NULL;
         if (!g_option_context_parse (context, &argc, &argv, &error)) {
                 g_warning ("%s", error->message);
-                g_error_free (error);
-                goto out;
+                return EXIT_FAILURE;
         }
         g_option_context_free (context);
 
         if (show_version) {
                 g_print ("accounts-daemon " VERSION "\n");
-                ret = 0;
-                goto out;
+                return EXIT_SUCCESS;
         }
 
         /* If --debug, then print debug messages even when no G_MESSAGES_DEBUG */
@@ -223,9 +215,6 @@ main (int argc, char *argv[])
         g_debug ("exiting");
         g_main_loop_unref (loop);
 
-        ret = 0;
-
- out:
-        return ret;
+        return EXIT_SUCCESS;
 }
 

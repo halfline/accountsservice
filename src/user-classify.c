@@ -112,7 +112,7 @@ user_classify_is_excluded_by_heuristics (const gchar *username,
 static gboolean
 is_invalid_shell (const char *shell)
 {
-        char *basename;
+        g_autofree gchar *basename = NULL;
         int ret = FALSE;
 
 #ifdef HAVE_GETUSERSHELL
@@ -134,14 +134,12 @@ is_invalid_shell (const char *shell)
         /* always check for false and nologin since they are sometimes included by getusershell */
         basename = g_path_get_basename (shell);
         if (shell[0] == '\0') {
-                ret = TRUE;
+                return TRUE;
         } else if (g_strcmp0 (basename, "nologin") == 0) {
-                ret = TRUE;
+                return TRUE;
         } else if (g_strcmp0 (basename, "false") == 0) {
-                ret = TRUE;
+                return TRUE;
         }
-
-        g_free (basename);
 
         return ret;
 }
