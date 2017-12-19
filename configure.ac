@@ -358,6 +358,11 @@ if test "x$with_systemdsystemunitdir" != "xno"; then
 fi
 AM_CONDITIONAL(HAVE_SYSTEMD, [test -n "$with_systemdsystemunitdir" -a "x$with_systemdsystemunitdir" != "xno" ])
 
+AC_ARG_WITH(gdmconffile,
+            AS_HELP_STRING([--with-gdmconffile=FILE], [GDM configuration file, default=/etc/gdm/custom.conf]),
+            gdmconffile=${withval}, gdmconffile=/etc/gdm/custom.conf)
+AC_DEFINE_UNQUOTED([PATH_GDM_CUSTOM], ["$gdmconffile"], [GDM configuration file])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
 Makefile
@@ -382,6 +387,7 @@ else
 fi
         AC_MSG_NOTICE([** Administrator group: $enable_admin_group])
         AC_MSG_NOTICE([** Extra administrator groups: $with_extra_admin_groups])
+        AC_MSG_NOTICE([** GDM configuration: $gdmconffile])
 echo
 
 

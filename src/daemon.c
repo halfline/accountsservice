@@ -51,7 +51,6 @@
 #define PATH_PASSWD "/etc/passwd"
 #define PATH_SHADOW "/etc/shadow"
 #define PATH_GROUP "/etc/group"
-#define PATH_GDM_CUSTOM "/etc/gdm/custom.conf"
 
 enum {
         PROP_0,
