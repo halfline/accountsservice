@@ -76,9 +76,6 @@ user_classify_is_blacklisted (const char *username)
         return FALSE;
 }
 
-#define PATH_NOLOGIN "/sbin/nologin"
-#define PATH_FALSE "/bin/false"
-
 #ifdef ENABLE_USER_HEURISTICS
 static gboolean
 user_classify_is_excluded_by_heuristics (const gchar *username,
@@ -115,7 +112,7 @@ user_classify_is_excluded_by_heuristics (const gchar *username,
 static gboolean
 is_invalid_shell (const char *shell)
 {
-        char *basename, *nologin_basename, *false_basename;
+        char *basename;
         int ret = FALSE;
 
 #ifdef HAVE_GETUSERSHELL
@@ -136,20 +133,15 @@ is_invalid_shell (const char *shell)
 
         /* always check for false and nologin since they are sometimes included by getusershell */
         basename = g_path_get_basename (shell);
-        nologin_basename = g_path_get_basename (PATH_NOLOGIN);
-        false_basename = g_path_get_basename (PATH_FALSE);
-
         if (shell[0] == '\0') {
                 ret = TRUE;
-        } else if (g_strcmp0 (basename, nologin_basename) == 0) {
+        } else if (g_strcmp0 (basename, "nologin") == 0) {
                 ret = TRUE;
-        } else if (g_strcmp0 (basename, false_basename) == 0) {
+        } else if (g_strcmp0 (basename, "false") == 0) {
                 ret = TRUE;
         }
 
         g_free (basename);
-        g_free (nologin_basename);
-        g_free (false_basename);
 
         return ret;
 }
