@@ -87,6 +87,8 @@ G_DEFINE_TYPE_WITH_CODE (Daemon, daemon, ACCOUNTS_TYPE_ACCOUNTS_SKELETON, G_IMPL
 
 #define DAEMON_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), TYPE_DAEMON, DaemonPrivate))
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (Daemon, g_object_unref)
+
 static const GDBusErrorEntry accounts_error_entries[] =
 { 
         { ERROR_FAILED, "org.freedesktop.Accounts.Error.Failed" },
@@ -255,12 +257,10 @@ entry_generator_cachedir (Daemon       *daemon,
                           struct spwd **shadow_entry)
 {
         struct passwd *pwent;
-        const gchar *name;
         GError *error = NULL;
-        gchar *filename;
         gboolean regular;
         GHashTableIter iter;
-        GKeyFile *key_file;
+        const gchar *name;
         User *user;
         GDir *dir;
 
@@ -283,6 +283,9 @@ entry_generator_cachedir (Daemon       *daemon,
          */
         dir = *state;
         while (TRUE) {
+                const gchar *name;
+                g_autofree gchar *filename = NULL;
+
                 name = g_dir_read_name (dir);
                 if (name == NULL)
                         break;
@@ -290,7 +293,6 @@ entry_generator_cachedir (Daemon       *daemon,
                 /* Only load files in this directory */
                 filename = g_build_filename (USERDIR, name, NULL);
                 regular = g_file_test (filename, G_FILE_TEST_IS_REGULAR);
-                g_free (filename);
 
                 if (regular) {
                         errno = 0;
@@ -316,12 +318,13 @@ entry_generator_cachedir (Daemon       *daemon,
         /* Update all the users from the files in the cache dir */
         g_hash_table_iter_init (&iter, users);
         while (g_hash_table_iter_next (&iter, (gpointer *)&name, (gpointer *)&user)) {
+                g_autofree gchar *filename = NULL;
+                g_autoptr(GKeyFile) key_file = NULL;
+
                 filename = g_build_filename (USERDIR, name, NULL);
                 key_file = g_key_file_new ();
                 if (g_key_file_load_from_file (key_file, filename, 0, NULL))
                         user_update_from_keyfile (user, key_file);
-                g_key_file_unref (key_file);
-                g_free (filename);
         }
 
         *state = NULL;
@@ -571,8 +574,7 @@ reload_autologin_timeout (Daemon *daemon)
         if (daemon->priv->autologin != NULL && daemon->priv->autologin != user) {
                 g_object_set (daemon->priv->autologin, "automatic-login", FALSE, NULL);
                 g_signal_emit_by_name (daemon->priv->autologin, "changed", 0);
-                g_object_unref (daemon->priv->autologin);
-                daemon->priv->autologin = NULL;
+                g_clear_object (&daemon->priv->autologin);
         }
 
         if (enabled) {
@@ -666,9 +668,9 @@ setup_monitor (Daemon             *daemon,
                const gchar        *path,
                FileChangeCallback *callback)
 {
-        GError *error = NULL;
-        GFile *file;
+        g_autoptr(GFile) file = NULL;
         GFileMonitor *monitor;
+        g_autoptr(GError) error = NULL;
 
         if (!path) {
                 return NULL;
@@ -679,16 +681,15 @@ setup_monitor (Daemon             *daemon,
                                        G_FILE_MONITOR_NONE,
                                        NULL,
                                        &error);
-        if (monitor != NULL) {
-                g_signal_connect (monitor,
-                                  "changed",
-                                  G_CALLBACK (callback),
-                                  daemon);
-        } else {
+        if (monitor == NULL) {
                 g_warning ("Unable to monitor %s: %s", path, error->message);
-                g_error_free (error);
+                return NULL;
         }
-        g_object_unref (file);
+
+        g_signal_connect (monitor,
+                          "changed",
+                          G_CALLBACK (callback),
+                          daemon);
 
         return monitor;
 }
@@ -788,19 +789,15 @@ register_accounts_daemon (Daemon *daemon)
 Daemon *
 daemon_new (void)
 {
-        Daemon *daemon;
+        g_autoptr(Daemon) daemon = NULL;
 
         daemon = DAEMON (g_object_new (TYPE_DAEMON, NULL));
 
         if (!register_accounts_daemon (DAEMON (daemon))) {
-                g_object_unref (daemon);
-                goto error;
+                return NULL;
         }
 
-        return daemon;
-
- error:
-        return NULL;
+        return g_steal_pointer (&daemon);
 }
 
 static void
@@ -1564,8 +1561,7 @@ daemon_local_set_automatic_login (Daemon    *daemon,
         if (daemon->priv->autologin != NULL) {
                 g_object_set (daemon->priv->autologin, "automatic-login", FALSE, NULL);
                 g_signal_emit_by_name (daemon->priv->autologin, "changed", 0);
-                g_object_unref (daemon->priv->autologin);
-                daemon->priv->autologin = NULL;
+                g_clear_object (&daemon->priv->autologin);
         }
 
         if (enabled) {
