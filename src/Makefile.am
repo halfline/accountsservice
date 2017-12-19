@@ -8,7 +8,7 @@ INCLUDES = 			\
 	-DUSERDIR=\"$(localstatedir)/lib/AccountsService/users\" \
 	-I$(srcdir)		\
 	-I$(builddir)		\
-	$(POLKIT_CFLAGS)	\
+	$(ACCOUNTS_DAEMON_CFLAGS)	\
 	$(WARN_CFLAGS)
 
 noinst_LTLIBRARIES = libaccounts-generated.la
@@ -47,7 +47,7 @@ accounts_daemon_SOURCES = 	\
 
 accounts_daemon_LDADD = 	\
 	libaccounts-generated.la	\
-	$(POLKIT_LIBS)
+	$(ACCOUNTS_DAEMON_LIBS)
 
 EXTRA_DIST = \
 	fgetpwent.c	\

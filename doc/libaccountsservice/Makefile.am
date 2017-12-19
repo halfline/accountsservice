@@ -20,11 +20,11 @@ IGNORE_HFILES= \
 
 GTKDOC_CFLAGS= \
 	-I$(top_srcdir)/src/libaccountsservice \
-	$(GIO_CFLAGS)
+	$(LIBACCOUNTSSERVICE_CFLAGS)
 
 GTKDOC_LIBS= \
 	$(top_builddir)/src/libaccountsservice/libaccountsservice.la \
-	$(GIO_LIBS)
+	$(LIBACCOUNTSSERVICE_LIBS)
 
 include $(top_srcdir)/gtk-doc.make
 
