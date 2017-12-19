@@ -469,7 +469,7 @@ act_user_class_init (ActUserClass *class)
 static void
 act_user_init (ActUser *user)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         user->our_sessions = NULL;
         user->other_sessions = NULL;
@@ -477,7 +477,6 @@ act_user_init (ActUser *user)
         user->connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
         if (user->connection == NULL) {
                 g_warning ("Couldn't connect to system bus: %s", error->message);
-                g_error_free (error);
         }
 }
 
@@ -1118,7 +1117,6 @@ _act_user_update_from_object_path (ActUser    *user,
                                                        &error);
         if (!accounts_proxy) {
                 g_warning ("Couldn't create accounts proxy: %s", error->message);
-                g_error_free (error);
                 return;
         }
 
@@ -1229,7 +1227,7 @@ act_user_get_password_expiration_policy (ActUser *user,
                                          gint64  *days_to_warn,
                                          gint64  *days_after_expiration_until_lock)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1244,7 +1242,6 @@ act_user_get_password_expiration_policy (ActUser *user,
                                                                      NULL,
                                                                      &error)) {
                 g_warning ("GetPasswordExpirationPolicy call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1262,7 +1259,7 @@ void
 act_user_set_email (ActUser    *user,
                     const char *email)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (email != NULL);
@@ -1273,7 +1270,6 @@ act_user_set_email (ActUser    *user,
                                                 NULL,
                                                 &error)) {
                 g_warning ("SetEmail call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1291,7 +1287,7 @@ void
 act_user_set_language (ActUser    *user,
                        const char *language)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (language != NULL);
@@ -1302,7 +1298,6 @@ act_user_set_language (ActUser    *user,
                                                    NULL,
                                                    &error)) {
                 g_warning ("SetLanguage for language %s failed: %s", language, error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1320,7 +1315,7 @@ void
 act_user_set_x_session (ActUser    *user,
                         const char *x_session)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (x_session != NULL);
@@ -1331,7 +1326,6 @@ act_user_set_x_session (ActUser    *user,
                                                    NULL,
                                                    &error)) {
                 g_warning ("SetXSession call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1350,7 +1344,7 @@ void
 act_user_set_location (ActUser    *user,
                        const char *location)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (location != NULL);
@@ -1361,7 +1355,6 @@ act_user_set_location (ActUser    *user,
                                                    NULL,
                                                    &error)) {
                 g_warning ("SetLocation call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1379,7 +1372,7 @@ void
 act_user_set_user_name (ActUser    *user,
                         const char *user_name)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (user_name != NULL);
@@ -1390,7 +1383,6 @@ act_user_set_user_name (ActUser    *user,
                                                     NULL,
                                                     &error)) {
                 g_warning ("SetUserName call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1408,7 +1400,7 @@ void
 act_user_set_real_name (ActUser    *user,
                         const char *real_name)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (real_name != NULL);
@@ -1419,7 +1411,6 @@ act_user_set_real_name (ActUser    *user,
                                                     NULL,
                                                     &error)) {
                 g_warning ("SetRealName call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1437,7 +1428,7 @@ void
 act_user_set_icon_file (ActUser    *user,
                         const char *icon_file)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (icon_file != NULL);
@@ -1448,7 +1439,6 @@ act_user_set_icon_file (ActUser    *user,
                                                     NULL,
                                                     &error)) {
                 g_warning ("SetIconFile call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1466,7 +1456,7 @@ void
 act_user_set_account_type (ActUser            *user,
                            ActUserAccountType  account_type)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1476,7 +1466,6 @@ act_user_set_account_type (ActUser            *user,
                                                     NULL,
                                                     &error)) {
                 g_warning ("SetAccountType call failed: %s", error->message);
-                g_error_free (error);
                 return;
         }
 }
@@ -1494,9 +1483,8 @@ salt_char (GRand *rand)
 static gchar *
 make_crypted (const gchar *plain)
 {
-        GString *salt;
-        gchar *result;
-        GRand *rand;
+        g_autoptr(GString) salt = NULL;
+        g_autoptr(GRand) rand = NULL;
         gint i;
 
         rand = g_rand_new ();
@@ -1509,12 +1497,7 @@ make_crypted (const gchar *plain)
         }
         g_string_append_c (salt, '$');
 
-        result = g_strdup (crypt (plain, salt->str));
-
-        g_string_free (salt, TRUE);
-        g_rand_free (rand);
-
-        return result;
+        return g_strdup (crypt (plain, salt->str));
 }
 
 /**
@@ -1533,8 +1516,8 @@ act_user_set_password (ActUser             *user,
                        const gchar         *password,
                        const gchar         *hint)
 {
-        GError *error = NULL;
-        gchar *crypted;
+        g_autoptr(GError) error = NULL;
+        g_autofree gchar *crypted = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (password != NULL);
@@ -1547,10 +1530,8 @@ act_user_set_password (ActUser             *user,
                                                    NULL,
                                                    &error)) {
                 g_warning ("SetPassword call failed: %s", error->message);
-                g_error_free (error);
         }
         memset (crypted, 0, strlen (crypted));
-        g_free (crypted);
 }
 
 /**
@@ -1567,7 +1548,7 @@ void
 act_user_set_password_hint (ActUser     *user,
                             const gchar *hint)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1577,7 +1558,6 @@ act_user_set_password_hint (ActUser     *user,
                                                         NULL,
                                                         &error)) {
                 g_warning ("SetPasswordHint call failed: %s", error->message);
-                g_error_free (error);
         }
 }
 
@@ -1598,7 +1578,7 @@ void
 act_user_set_password_mode (ActUser             *user,
                             ActUserPasswordMode  password_mode)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1608,7 +1588,6 @@ act_user_set_password_mode (ActUser             *user,
                                                         NULL,
                                                         &error)) {
                 g_warning ("SetPasswordMode call failed: %s", error->message);
-                g_error_free (error);
         }
 }
 
@@ -1623,7 +1602,7 @@ void
 act_user_set_locked (ActUser  *user,
                      gboolean  locked)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1633,7 +1612,6 @@ act_user_set_locked (ActUser  *user,
                                                  NULL,
                                                  &error)) {
                 g_warning ("SetLocked call failed: %s", error->message);
-                g_error_free (error);
         }
 }
 
@@ -1653,7 +1631,7 @@ void
 act_user_set_automatic_login (ActUser   *user,
                               gboolean  enabled)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         g_return_if_fail (ACT_IS_USER (user));
         g_return_if_fail (ACCOUNTS_IS_USER (user->accounts_proxy));
@@ -1663,6 +1641,5 @@ act_user_set_automatic_login (ActUser   *user,
                                                           NULL,
                                                           &error)) {
                 g_warning ("SetAutomaticLogin call failed: %s", error->message);
-                g_error_free (error);
         }
 }
