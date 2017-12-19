@@ -1689,7 +1689,7 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
         gid_t *groups;
         gint ngroups;
         GString *str;
-        gid_t wheel;
+        gid_t admin_gid;
         struct group *grp;
         gint i;
         const gchar *argv[6];
@@ -1701,22 +1701,22 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
 
                 grp = getgrnam (ADMIN_GROUP);
                 if (grp == NULL) {
-                        throw_error (context, ERROR_FAILED, "failed to set account type: wheel group not found");
+                        throw_error (context, ERROR_FAILED, "failed to set account type: " ADMIN_GROUP " group not found");
                         return;
                 }
-                wheel = grp->gr_gid;
+                admin_gid = grp->gr_gid;
 
                 ngroups = get_user_groups (user->user_name, user->gid, &groups);
 
                 str = g_string_new ("");
                 for (i = 0; i < ngroups; i++) {
-                        if (groups[i] == wheel)
+                        if (groups[i] == admin_gid)
                                 continue;
                         g_string_append_printf (str, "%d,", groups[i]);
                 }
                 switch (account_type) {
                 case ACCOUNT_TYPE_ADMINISTRATOR:
-                        g_string_append_printf (str, "%d", wheel);
+                        g_string_append_printf (str, "%d", admin_gid);
                         break;
                 case ACCOUNT_TYPE_STANDARD:
                 default:
