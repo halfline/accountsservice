@@ -156,7 +156,7 @@ user_update_from_pwent (User          *user,
                         struct passwd *pwent,
                         struct spwd   *spent)
 {
-        gchar *real_name;
+        g_autofree gchar *real_name = NULL;
         gboolean changed;
         const gchar *passwd;
         gboolean locked;
@@ -193,8 +193,7 @@ user_update_from_pwent (User          *user,
                 }
 
                 if (real_name && real_name[0] == '\0') {
-                        g_free (real_name);
-                        real_name = NULL;
+                        g_clear_pointer (&real_name, g_free);
                 }
         }
         else {
@@ -202,12 +201,9 @@ user_update_from_pwent (User          *user,
         }
         if (g_strcmp0 (real_name, user->real_name) != 0) {
                 g_free (user->real_name);
-                user->real_name = real_name;
+                user->real_name = g_steal_pointer (&real_name);
                 changed = TRUE;
                 g_object_notify (G_OBJECT (user), "real-name");
-        }
-        else {
-                g_free (real_name);
         }
 
         /* UID */
@@ -424,35 +420,32 @@ user_save_to_keyfile (User     *user,
 static void
 save_extra_data (User *user)
 {
-        gchar *filename;
-        gchar *data;
-        GError *error;
+        g_autofree gchar *data = NULL;
+        g_autofree gchar *filename = NULL;
+        g_autoptr(GError) error = NULL;
 
         user_save_to_keyfile (user, user->keyfile);
 
         error = NULL;
         data = g_key_file_to_data (user->keyfile, NULL, &error);
-        if (error == NULL) {
-                filename = g_build_filename (USERDIR,
-                                             user->user_name,
-                                             NULL);
-                g_file_set_contents (filename, data, -1, &error);
-                g_free (filename);
-                g_free (data);
-        }
-        if (error) {
+        if (data == NULL) {
                 g_warning ("Saving data for user %s failed: %s",
                            user->user_name, error->message);
-                g_error_free (error);
+                return;
         }
+
+        filename = g_build_filename (USERDIR,
+                                     user->user_name,
+                                     NULL);
+        g_file_set_contents (filename, data, -1, &error);
 }
 
 static void
 move_extra_data (const gchar *old_name,
                  const gchar *new_name)
 {
-        gchar *old_filename;
-        gchar *new_filename;
+        g_autofree gchar *old_filename = NULL;
+        g_autofree gchar *new_filename = NULL;
 
         old_filename = g_build_filename (USERDIR,
                                          old_name, NULL);
@@ -460,9 +453,6 @@ move_extra_data (const gchar *old_name,
                                          new_name, NULL);
 
         g_rename (old_filename, new_filename);
-
-        g_free (old_filename);
-        g_free (new_filename);
 }
 
 static GVariant *
@@ -472,15 +462,13 @@ user_extension_get_value (User                    *user,
 {
         const GVariantType *type = G_VARIANT_TYPE (property->signature);
         GVariant *value;
-        gchar *printed;
+        g_autofree gchar *printed = NULL;
         gint i;
 
         /* First, try to get the value from the keyfile */
         printed = g_key_file_get_value (user->keyfile, interface->name, property->name, NULL);
         if (printed) {
                 value = g_variant_parse (type, printed, NULL, NULL, NULL);
-                g_free (printed);
-
                 if (value != NULL)
                         return value;
         }
@@ -511,13 +499,12 @@ user_extension_get_property (User                  *user,
                              GDBusMethodInvocation *invocation)
 {
         const GDBusPropertyInfo *property = g_dbus_method_invocation_get_property_info (invocation);
-        GVariant *value;
+        g_autoptr(GVariant) value = NULL;
 
         value = user_extension_get_value (user, interface, property);
 
         if (value) {
                 g_dbus_method_invocation_return_value (invocation, g_variant_new ("(v)", value));
-                g_variant_unref (value);
         }
         else {
                 g_dbus_method_invocation_return_error (invocation, G_DBUS_ERROR, G_DBUS_ERROR_INVALID_ARGS,
@@ -538,14 +525,12 @@ user_extension_get_all_properties (User                  *user,
         g_variant_builder_init (&builder, G_VARIANT_TYPE_VARDICT);
         for (i = 0; interface->properties && interface->properties[i]; i++) {
                 GDBusPropertyInfo *property = interface->properties[i];
-                GVariant *value;
+                g_autoptr(GVariant) value = NULL;
 
                 value = user_extension_get_value (user, interface, property);
 
-                if (value) {
+                if (value)
                         g_variant_builder_add (&builder, "{sv}", property->name, value);
-                        g_variant_unref (value);
-                }
         }
 
         g_dbus_method_invocation_return_value (invocation, g_variant_new ("(a{sv})", &builder));
@@ -558,9 +543,9 @@ user_extension_set_property (User                  *user,
                              GDBusMethodInvocation *invocation)
 {
         const GDBusPropertyInfo *property = g_dbus_method_invocation_get_property_info (invocation);
-        GVariant *value;
-        gchar *printed;
-        gchar *prev;
+        g_autoptr(GVariant) value = NULL;
+        g_autofree gchar *printed = NULL;
+        g_autofree gchar *prev = NULL;
 
         g_variant_get_child (g_dbus_method_invocation_get_parameters (invocation), 2, "v", &value);
 
@@ -589,10 +574,6 @@ user_extension_set_property (User                  *user,
                 accounts_user_emit_changed (ACCOUNTS_USER (user));
                 save_extra_data (user);
         }
-
-        g_variant_unref (value);
-        g_free (printed);
-        g_free (prev);
 
         g_dbus_method_invocation_return_value (invocation, g_variant_new ("()"));
 }
@@ -732,14 +713,12 @@ compute_object_path (User *user)
 void
 user_register (User *user)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         user->system_bus_connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
         if (user->system_bus_connection == NULL) {
-                if (error != NULL) {
+                if (error != NULL)
                         g_critical ("error getting system bus: %s", error->message);
-                        g_error_free (error);
-                }
                 return;
         }
 
@@ -749,10 +728,8 @@ user_register (User *user)
                                                user->system_bus_connection,
                                                user->object_path,
                                                &error)) {
-                if (error != NULL) {
+                if (error != NULL)
                         g_critical ("error exporting user object: %s", error->message);
-                        g_error_free (error);
-                }
                 return;
         }
 
@@ -861,15 +838,13 @@ throw_error (GDBusMethodInvocation *context,
              ...)
 {
         va_list args;
-        gchar *message;
+        g_autofree gchar *message = NULL;
 
         va_start (args, format);
         message = g_strdup_vprintf (format, args);
         va_end (args);
 
         g_dbus_method_invocation_return_error (context, ERROR, error_code, "%s", message);
-
-        g_free (message);
 }
 
 static void
@@ -880,7 +855,7 @@ user_change_real_name_authorized_cb (Daemon                *daemon,
 
 {
         gchar *name = data;
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[6];
 
         if (g_strcmp0 (user->real_name, name) != 0) {
@@ -895,10 +870,8 @@ user_change_real_name_authorized_cb (Daemon                *daemon,
                 argv[4] = user->user_name;
                 argv[5] = NULL;
 
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -953,7 +926,7 @@ user_change_user_name_authorized_cb (Daemon                *daemon,
 {
         gchar *name = data;
         gchar *old_name;
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[6];
 
         if (g_strcmp0 (user->user_name, name) != 0) {
@@ -972,7 +945,6 @@ user_change_user_name_authorized_cb (Daemon                *daemon,
                 error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -1284,7 +1256,7 @@ user_change_home_dir_authorized_cb (Daemon                *daemon,
 
 {
         gchar *home_dir = data;
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[7];
 
         if (g_strcmp0 (user->home_dir, home_dir) != 0) {
@@ -1303,7 +1275,6 @@ user_change_home_dir_authorized_cb (Daemon                *daemon,
                 error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -1346,7 +1317,7 @@ user_change_shell_authorized_cb (Daemon                *daemon,
 
 {
         gchar *shell = data;
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[6];
 
         if (g_strcmp0 (user->shell, shell) != 0) {
@@ -1364,7 +1335,6 @@ user_change_shell_authorized_cb (Daemon                *daemon,
                 error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -1417,9 +1387,9 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
                                      gpointer               data)
 
 {
-        gchar *filename;
-        GFile *file;
-        GFileInfo *info;
+        g_autofree gchar *filename = NULL;
+        g_autoptr(GFile) file = NULL;
+        g_autoptr(GFileInfo) info = NULL;
         guint32 mode;
         GFileType type;
         guint64 size;
@@ -1428,26 +1398,20 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
 
         if (filename == NULL ||
             *filename == '\0') {
-                char *dest_path;
-                GFile *dest;
-                GError *error;
+                g_autofree gchar *dest_path = NULL;
+                g_autoptr(GFile) dest = NULL;
+                g_autoptr(GError) error = NULL;
 
-                g_free (filename);
-                filename = NULL;
+                g_clear_pointer (&filename, g_free);
 
                 dest_path = g_build_filename (ICONDIR, user->user_name, NULL);
                 dest = g_file_new_for_path (dest_path);
-                g_free (dest_path);
 
-                error = NULL;
                 if (!g_file_delete (dest, NULL, &error) &&
                     !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND)) {
-                        g_object_unref (dest);
                         throw_error (context, ERROR_FAILED, "failed to remove user icon, %s", error->message);
-                        g_error_free (error);
                         return;
                 }
-                g_object_unref (dest);
                 goto icon_saved;
         }
 
@@ -1460,13 +1424,9 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
         type = g_file_info_get_file_type (info);
         size = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE);
 
-        g_object_unref (info);
-        g_object_unref (file);
-
         if (type != G_FILE_TYPE_REGULAR) {
                 g_debug ("not a regular file");
                 throw_error (context, ERROR_FAILED, "file '%s' is not a regular file", filename);
-                g_free (filename);
                 return;
         }
 
@@ -1474,41 +1434,34 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
                 g_debug ("file too large");
                 /* 1MB ought to be enough for everybody */
                 throw_error (context, ERROR_FAILED, "file '%s' is too large to be used as an icon", filename);
-                g_free (filename);
                 return;
         }
 
         if ((mode & S_IROTH) == 0 ||
             (!g_str_has_prefix (filename, DATADIR) &&
              !g_str_has_prefix (filename, ICONDIR))) {
-                gchar *dest_path;
-                GFile *dest;
+                g_autofree gchar *dest_path = NULL;
+                g_autoptr(GFile) dest = NULL;
                 const gchar *argv[3];
                 gint std_out;
-                GError *error;
-                GInputStream *input;
-                GOutputStream *output;
+                g_autoptr(GError) error = NULL;
+                g_autoptr(GInputStream) input = NULL;
+                g_autoptr(GOutputStream) output = NULL;
                 gint uid;
                 gssize bytes;
                 struct passwd *pw;
 
                 if (!get_caller_uid (context, &uid)) {
                         throw_error (context, ERROR_FAILED, "failed to copy file, could not determine caller UID");
-                        g_free (filename);
                         return;
                 }
 
                 dest_path = g_build_filename (ICONDIR, user->user_name, NULL);
                 dest = g_file_new_for_path (dest_path);
 
-                error = NULL;
                 output = G_OUTPUT_STREAM (g_file_replace (dest, NULL, FALSE, 0, NULL, &error));
                 if (!output) {
                         throw_error (context, ERROR_FAILED, "creating file '%s' failed: %s", dest_path, error->message);
-                        g_error_free (error);
-                        g_free (filename);
-                        g_free (dest_path);
-                        g_object_unref (dest);
                         return;
                 }
 
@@ -1521,10 +1474,6 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
                 error = NULL;
                 if (!g_spawn_async_with_pipes (NULL, (gchar**)argv, NULL, 0, become_user, pw, NULL, NULL, &std_out, NULL, &error)) {
                         throw_error (context, ERROR_FAILED, "reading file '%s' failed: %s", filename, error->message);
-                        g_error_free (error);
-                        g_free (filename);
-                        g_free (dest_path);
-                        g_object_unref (dest);
                         return;
                 }
 
@@ -1534,30 +1483,17 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
                 bytes = g_output_stream_splice (output, input, G_OUTPUT_STREAM_SPLICE_CLOSE_TARGET, NULL, &error);
                 if (bytes < 0 || (gsize)bytes != size) {
                         throw_error (context, ERROR_FAILED, "copying file '%s' to '%s' failed: %s", filename, dest_path, error ? error->message : "unknown reason");
-                        if (error)
-                                g_error_free (error);
-
                         g_file_delete (dest, NULL, NULL);
-
-                        g_free (filename);
-                        g_free (dest_path);
-                        g_object_unref (dest);
-                        g_object_unref (input);
-                        g_object_unref (output);
                         return;
                 }
 
-                g_object_unref (dest);
-                g_object_unref (input);
-                g_object_unref (output);
-
                 g_free (filename);
-                filename = dest_path;
+                filename = g_steal_pointer (&dest_path);
         }
 
 icon_saved:
         g_free (user->icon_file);
-        user->icon_file = filename;
+        user->icon_file = g_steal_pointer (&filename);
 
         save_extra_data (user);
 
@@ -1607,7 +1543,7 @@ user_change_locked_authorized_cb (Daemon                *daemon,
 
 {
         gboolean locked = GPOINTER_TO_INT (data);
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[5];
 
         if (user->locked != locked) {
@@ -1623,7 +1559,6 @@ user_change_locked_authorized_cb (Daemon                *daemon,
                 error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -1685,11 +1620,11 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
 
 {
         AccountType account_type = GPOINTER_TO_INT (data);
-        GError *error;
+        g_autoptr(GError) error = NULL;
         gid_t *groups;
         gint ngroups;
-        GString *str;
-        char **extra_admin_groups;
+        g_autoptr(GString) str = NULL;
+        g_auto(GStrv) extra_admin_groups = NULL;
         gid_t admin_gid;
         struct group *grp;
         gint i;
@@ -1729,7 +1664,6 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
                         }
 
                         g_string_append_printf (str, "%d", admin_gid);
-                        g_strfreev (extra_admin_groups);
                         break;
                 case ACCOUNT_TYPE_STANDARD:
                 default:
@@ -1747,12 +1681,8 @@ user_change_account_type_authorized_cb (Daemon                *daemon,
                 argv[4] = user->user_name;
                 argv[5] = NULL;
 
-                g_string_free (str, FALSE);
-
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                        g_error_free (error);
                         return;
                 }
 
@@ -1797,7 +1727,7 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
 
 {
         PasswordMode mode = GPOINTER_TO_INT (data);
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[6];
 
         if (user->password_mode != mode) {
@@ -1819,7 +1749,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                         error = NULL;
                         if (!spawn_with_login_uid (context, argv, &error)) {
                                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                                g_error_free (error);
                                 return;
                         }
 
@@ -1834,7 +1763,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                                 error = NULL;
                                 if (!spawn_with_login_uid (context, argv, &error)) {
                                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                                        g_error_free (error);
                                         return;
                                 }
                         }
@@ -1862,7 +1790,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                         error = NULL;
                         if (!spawn_with_login_uid (context, argv, &error)) {
                                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                                g_error_free (error);
                                 return;
                         }
 
@@ -1928,7 +1855,7 @@ user_change_password_authorized_cb (Daemon                *daemon,
 
 {
         gchar **strings = data;
-        GError *error;
+        g_autoptr(GError) error = NULL;
         const gchar *argv[6];
 
         sys_log (context,
@@ -1947,7 +1874,6 @@ user_change_password_authorized_cb (Daemon                *daemon,
         error = NULL;
         if (!spawn_with_login_uid (context, argv, &error)) {
                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
-                g_error_free (error);
                 return;
         }
 
@@ -2087,7 +2013,7 @@ user_change_automatic_login_authorized_cb (Daemon                *daemon,
                                            gpointer               data)
 {
         gboolean enabled = GPOINTER_TO_INT (data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         sys_log (context,
                  "%s automatic login for user '%s' (%d)",
@@ -2100,7 +2026,6 @@ user_change_automatic_login_authorized_cb (Daemon                *daemon,
 
         if (!daemon_local_set_automatic_login (daemon, user, enabled, &error)) {
                 throw_error (context, ERROR_FAILED, "failed to change automatic login: %s", error->message);
-                g_error_free (error);
                 return;
         }
 
@@ -2264,8 +2189,7 @@ user_finalize (GObject *object)
         g_free (user->location);
         g_free (user->password_hint);
 
-	if (user->login_history)
-		g_variant_unref (user->login_history);
+	g_clear_pointer (&user->login_history, g_variant_unref);
 
         if (G_OBJECT_CLASS (user_parent_class)->finalize)
                 (*G_OBJECT_CLASS (user_parent_class)->finalize) (object);
