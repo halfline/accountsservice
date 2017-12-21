@@ -37,8 +37,6 @@
 
 #define NAME_TO_CLAIM "org.freedesktop.Accounts"
 
-static GMainLoop *loop;
-
 static gboolean
 ensure_directory (const char  *path,
                   GError     **error)
@@ -59,36 +57,28 @@ on_bus_acquired (GDBusConnection  *connection,
                  const gchar      *name,
                  gpointer          user_data)
 {
+        GMainLoop *loop = user_data;
         Daemon *daemon;
-        GError *local_error = NULL;
-        GError **error = &local_error;
+        g_autoptr(GError) error = NULL;
 
-        if (!ensure_directory (ICONDIR, error)) {
-                goto out;
-        }
-
-        if (!ensure_directory (USERDIR, error)) {
-                goto out;
+        if (!ensure_directory (ICONDIR, &error) ||
+            !ensure_directory (USERDIR, &error)) {
+                g_printerr ("%s\n", error->message);
+                g_main_loop_quit (loop);
+                return;
         }
 
         daemon = daemon_new ();
         if (daemon == NULL) {
-                g_set_error (error, G_IO_ERROR, G_IO_ERROR_FAILED,
-                             "Failed to initialize daemon");
-                goto out;
+                g_printerr ("Failed to initialize daemon\n");
+                g_main_loop_quit (loop);
+                return;
         }
 
         openlog ("accounts-daemon", LOG_PID, LOG_DAEMON);
         syslog (LOG_INFO, "started daemon version %s", VERSION);
         closelog ();
         openlog ("accounts-daemon", 0, LOG_AUTHPRIV);
-
- out:
-        if (local_error != NULL) {
-                g_printerr ("%s\n", local_error->message);
-                g_clear_error (&local_error);
-                g_main_loop_quit (loop);
-        }
 }
 
 static void
@@ -96,6 +86,8 @@ on_name_lost (GDBusConnection  *connection,
               const gchar      *name,
               gpointer          user_data)
 {
+        GMainLoop *loop = user_data;
+
         g_debug ("got NameLost, exiting");
         g_main_loop_quit (loop);
 }
@@ -139,16 +131,19 @@ log_handler (const gchar   *domain,
 static gboolean
 on_signal_quit (gpointer data)
 {
-        g_main_loop_quit (data);
+        GMainLoop *loop = data;
+
+        g_main_loop_quit (loop);
         return FALSE;
 }
 
 int
 main (int argc, char *argv[])
 {
+        g_autoptr(GMainLoop) loop = NULL;
         g_autoptr(GError) error = NULL;
         GBusNameOwnerFlags flags;
-        GOptionContext *context;
+        g_autoptr(GOptionContext) context = NULL;
         static gboolean replace;
         static gboolean show_version;
         static GOptionEntry entries[] = {
@@ -175,12 +170,10 @@ main (int argc, char *argv[])
         g_option_context_set_translation_domain (context, GETTEXT_PACKAGE);
         g_option_context_set_summary (context, _("Provides D-Bus interfaces for querying and manipulating\nuser account information."));
         g_option_context_add_main_entries (context, entries, NULL);
-        error = NULL;
         if (!g_option_context_parse (context, &argc, &argv, &error)) {
                 g_warning ("%s", error->message);
                 return EXIT_FAILURE;
         }
-        g_option_context_free (context);
 
         if (show_version) {
                 g_print ("accounts-daemon " VERSION "\n");
@@ -192,6 +185,8 @@ main (int argc, char *argv[])
                 g_log_set_handler (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, on_log_debug, NULL);
         g_log_set_default_handler (log_handler, NULL);
 
+        loop = g_main_loop_new (NULL, FALSE);
+
         flags = G_BUS_NAME_OWNER_FLAGS_ALLOW_REPLACEMENT;
         if (replace)
                 flags |= G_BUS_NAME_OWNER_FLAGS_REPLACE;
@@ -201,10 +196,8 @@ main (int argc, char *argv[])
                         on_bus_acquired,
                         NULL,
                         on_name_lost,
-                        NULL,
+                        loop,
                         NULL);
-
-        loop = g_main_loop_new (NULL, FALSE);
 
         g_unix_signal_add (SIGINT, on_signal_quit, loop);
         g_unix_signal_add (SIGTERM, on_signal_quit, loop);
@@ -213,7 +206,6 @@ main (int argc, char *argv[])
         g_main_loop_run (loop);
 
         g_debug ("exiting");
-        g_main_loop_unref (loop);
 
         return EXIT_SUCCESS;
 }
