@@ -551,6 +551,7 @@ static gboolean load_autologin (Daemon    *daemon,
 static gboolean
 reload_autologin_timeout (Daemon *daemon)
 {
+        AccountsAccounts *accounts = ACCOUNTS_ACCOUNTS (daemon);
         gboolean enabled;
         g_autofree gchar *name = NULL;
         g_autoptr(GError) error = NULL;
@@ -573,7 +574,12 @@ reload_autologin_timeout (Daemon *daemon)
         }
 
         if (enabled) {
+                const gchar *users[2];
+
                 g_debug ("automatic login is enabled for '%s'", name);
+                users[0] = user_get_object_path (user);
+                users[1] = NULL;
+                accounts_accounts_set_automatic_login_users (accounts, users);
                 if (daemon->priv->autologin != user) {
                         g_object_set (user, "automatic-login", TRUE, NULL);
                         daemon->priv->autologin = g_object_ref (user);
@@ -582,6 +588,7 @@ reload_autologin_timeout (Daemon *daemon)
         }
         else {
                 g_debug ("automatic login is disabled");
+                accounts_accounts_set_automatic_login_users (accounts, NULL);
         }
 
         return FALSE;

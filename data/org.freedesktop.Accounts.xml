@@ -243,5 +243,15 @@
      </doc:doc>
    </property>
 
+   <property name="AutomaticLoginUsers" type="ao" access="read">
+     <doc:doc>
+       <doc:description>
+         <doc:para>
+           Users to automatically log in as
+         </doc:para>
+       </doc:description>
+     </doc:doc>
+   </property>
+
   </interface>
 </node>
