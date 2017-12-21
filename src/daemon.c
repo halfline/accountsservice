@@ -90,7 +90,7 @@ G_DEFINE_TYPE_WITH_CODE (Daemon, daemon, ACCOUNTS_TYPE_ACCOUNTS_SKELETON, G_IMPL
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (Daemon, g_object_unref)
 
 static const GDBusErrorEntry accounts_error_entries[] =
-{ 
+{
         { ERROR_FAILED, "org.freedesktop.Accounts.Error.Failed" },
         { ERROR_USER_EXISTS, "org.freedesktop.Accounts.Error.UserExists" },
         { ERROR_USER_DOES_NOT_EXIST, "org.freedesktop.Accounts.Error.UserDoesNotExist" },
