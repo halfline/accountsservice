@@ -426,7 +426,6 @@ save_extra_data (User *user)
 
         user_save_to_keyfile (user, user->keyfile);
 
-        error = NULL;
         data = g_key_file_to_data (user->keyfile, NULL, &error);
         if (data == NULL) {
                 g_warning ("Saving data for user %s failed: %s",
@@ -942,7 +941,6 @@ user_change_user_name_authorized_cb (Daemon                *daemon,
                 argv[4] = user->user_name;
                 argv[5] = NULL;
 
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                         return;
@@ -1272,7 +1270,6 @@ user_change_home_dir_authorized_cb (Daemon                *daemon,
                 argv[5] = user->user_name;
                 argv[6] = NULL;
 
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                         return;
@@ -1332,7 +1329,6 @@ user_change_shell_authorized_cb (Daemon                *daemon,
                 argv[4] = user->user_name;
                 argv[5] = NULL;
 
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                         return;
@@ -1471,7 +1467,6 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
 
                 pw = getpwuid (uid);
 
-                error = NULL;
                 if (!g_spawn_async_with_pipes (NULL, (gchar**)argv, NULL, 0, become_user, pw, NULL, NULL, &std_out, NULL, &error)) {
                         throw_error (context, ERROR_FAILED, "reading file '%s' failed: %s", filename, error->message);
                         return;
@@ -1479,7 +1474,6 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
 
                 input = g_unix_input_stream_new (std_out, FALSE);
 
-                error = NULL;
                 bytes = g_output_stream_splice (output, input, G_OUTPUT_STREAM_SPLICE_CLOSE_TARGET, NULL, &error);
                 if (bytes < 0 || (gsize)bytes != size) {
                         throw_error (context, ERROR_FAILED, "copying file '%s' to '%s' failed: %s", filename, dest_path, error ? error->message : "unknown reason");
@@ -1556,7 +1550,6 @@ user_change_locked_authorized_cb (Daemon                *daemon,
                 argv[3] = user->user_name;
                 argv[4] = NULL;
 
-                error = NULL;
                 if (!spawn_with_login_uid (context, argv, &error)) {
                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                         return;
@@ -1746,7 +1739,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                         argv[3] = user->user_name;
                         argv[4] = NULL;
 
-                        error = NULL;
                         if (!spawn_with_login_uid (context, argv, &error)) {
                                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                                 return;
@@ -1760,7 +1752,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                                 argv[4] = user->user_name;
                                 argv[5] = NULL;
 
-                                error = NULL;
                                 if (!spawn_with_login_uid (context, argv, &error)) {
                                         throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                                         return;
@@ -1787,7 +1778,6 @@ user_change_password_mode_authorized_cb (Daemon                *daemon,
                         argv[3] = user->user_name;
                         argv[4] = NULL;
 
-                        error = NULL;
                         if (!spawn_with_login_uid (context, argv, &error)) {
                                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                                 return;
@@ -1871,7 +1861,6 @@ user_change_password_authorized_cb (Daemon                *daemon,
         argv[4] = user->user_name;
         argv[5] = NULL;
 
-        error = NULL;
         if (!spawn_with_login_uid (context, argv, &error)) {
                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                 return;

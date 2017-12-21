@@ -2824,7 +2824,6 @@ act_user_manager_init (ActUserManager *manager)
                                                                      NULL,
                                                                      g_object_unref);
 
-        error = NULL;
         manager->priv->connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
         if (manager->priv->connection == NULL) {
                 if (error != NULL) {
@@ -3269,7 +3268,6 @@ act_user_manager_uncache_user (ActUserManager     *manager,
 
         g_assert (manager->priv->accounts_proxy != NULL);
 
-        local_error = NULL;
         res = accounts_accounts_call_uncache_user_sync (manager->priv->accounts_proxy,
                                                         username,
                                                         NULL,
@@ -3380,7 +3378,7 @@ act_user_manager_delete_user (ActUserManager  *manager,
                               gboolean         remove_files,
                               GError         **error)
 {
-        GError *local_error;
+        GError *local_error = NULL;
 
         g_debug ("ActUserManager: Deleting user '%s' (uid %ld)", act_user_get_user_name (user), (long) act_user_get_uid (user));
 
@@ -3388,7 +3386,6 @@ act_user_manager_delete_user (ActUserManager  *manager,
         g_return_val_if_fail (ACT_IS_USER (user), FALSE);
         g_return_val_if_fail (manager->priv->accounts_proxy != NULL, FALSE);
 
-        local_error = NULL;
         if (!accounts_accounts_call_delete_user_sync (manager->priv->accounts_proxy,
                                                       act_user_get_uid (user),
                                                       remove_files,

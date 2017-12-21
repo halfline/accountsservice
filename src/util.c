@@ -265,7 +265,6 @@ get_caller_uid (GDBusMethodInvocation *context,
         g_autoptr(GVariant) reply = NULL;
         g_autoptr(GError) error = NULL;
 
-        error = NULL;
         reply = g_dbus_connection_call_sync (g_dbus_method_invocation_get_connection (context),
                                              "org.freedesktop.DBus",
                                              "/org/freedesktop/DBus",

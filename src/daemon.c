@@ -1091,7 +1091,6 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
                 return;
         }
 
-        error = NULL;
         if (!spawn_with_login_uid (context, argv, &error)) {
                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                 return;
@@ -1288,7 +1287,6 @@ daemon_delete_user_authorized_cb (Daemon                *daemon,
                 argv[4] = NULL;
         }
 
-        error = NULL;
         if (!spawn_with_login_uid (context, argv, &error)) {
                 throw_error (context, ERROR_FAILED, "running '%s' failed: %s", argv[0], error->message);
                 return;
@@ -1359,11 +1357,8 @@ check_auth_cb (PolkitAuthority *authority,
         CheckAuthData *cad = data;
         PolkitAuthorizationResult *result;
         g_autoptr(GError) error = NULL;
-        gboolean is_authorized;
+        gboolean is_authorized = FALSE;
 
-        is_authorized = FALSE;
-
-        error = NULL;
         result = polkit_authority_check_authorization_finish (authority, res, &error);
         if (error) {
                 throw_error (cad->context, ERROR_PERMISSION_DENIED, "Not authorized: %s", error->message);
