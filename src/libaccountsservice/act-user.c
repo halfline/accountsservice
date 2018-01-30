@@ -886,6 +886,11 @@ act_user_is_logged_in_anywhere (ActUser *user)
 gboolean
 act_user_get_locked (ActUser *user)
 {
+        g_return_val_if_fail (ACT_IS_USER (user), TRUE);
+
+        if (user->accounts_proxy == NULL)
+                return TRUE;
+
         return accounts_user_get_locked (user->accounts_proxy);
 }
 
