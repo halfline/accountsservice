@@ -106,6 +106,7 @@ struct User {
         GVariant     *login_history;
         gchar        *icon_file;
         gchar        *default_icon_file;
+        gboolean      account_expiration_policy_known;
         gboolean      locked;
         gboolean      automatic_login;
         gboolean      system_account;
@@ -288,6 +289,7 @@ user_update_from_pwent (User          *user,
                 user->max_days_between_changes = spent->sp_max;
                 user->days_to_warn  = spent->sp_warn;
                 user->days_after_expiration_until_lock = spent->sp_inact;
+                user->account_expiration_policy_known = TRUE;
         }
 
         if (user->password_mode != mode) {
@@ -1181,6 +1183,11 @@ user_get_password_expiration_policy_authorized_cb (Daemon                *daemon
                                                    gpointer               data)
 
 {
+        if (!user->account_expiration_policy_known) {
+                throw_error (context, ERROR_NOT_SUPPORTED, "account expiration policy unknown to accounts service");
+                return;
+        }
+
         accounts_user_complete_get_password_expiration_policy (ACCOUNTS_USER (user),
                                                                context,
                                                                user->expiration_time,
