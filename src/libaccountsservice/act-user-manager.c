@@ -1690,12 +1690,6 @@ maybe_add_new_session (ActUserManagerNewSession *new_session)
         }
 
         add_session_for_user (manager, user, new_session->id, is_ours);
-
-        /* if we haven't yet gotten the login frequency
-           then at least add one because the session exists */
-        if (act_user_get_login_frequency (user) == 0) {
-                _act_user_update_login_frequency (user, 1);
-        }
 }
 
 static void

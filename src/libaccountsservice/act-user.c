@@ -732,7 +732,7 @@ act_user_get_login_frequency (ActUser *user)
         g_return_val_if_fail (ACT_IS_USER (user), 0);
 
         if (user->accounts_proxy == NULL)
-                return 0;
+                return 1;
 
         return accounts_user_get_login_frequency (user->accounts_proxy);
 }
