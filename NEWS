@@ -1,3 +1,16 @@
+Changes in 0.6.46
+=================
+* Fix systemd unit file to use default standard output
+* performance improvements
+* leak fixes
+* crash fixes
+* support extra groups for admin users
+* add policy that allows admins to allow users to change their own password
+* introspection fixes
+* elogind support
+* decruftification of username blacklist
+* Translation updates
+
 Changes in 0.6.45
 =================
 * wrap password expiration info in libaccountsservice api
