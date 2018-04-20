@@ -832,7 +832,7 @@ add_user (ActUserManager *manager,
                                  G_CALLBACK (on_user_changed),
                                  manager, 0);
 
-        if (manager->priv->is_loaded) {
+        if (manager->priv->is_loaded && manager->priv->list_cached_users_done) {
                 g_debug ("ActUserManager: loaded, so emitting user-added signal");
                 g_signal_emit (manager, signals[USER_ADDED], 0, user);
         } else {
@@ -861,7 +861,7 @@ remove_user (ActUserManager *manager,
 
         }
 
-        if (manager->priv->is_loaded) {
+        if (manager->priv->is_loaded && manager->priv->list_cached_users_done) {
                 g_debug ("ActUserManager: loaded, so emitting user-removed signal");
                 g_signal_emit (manager, signals[USER_REMOVED], 0, user);
         } else {
