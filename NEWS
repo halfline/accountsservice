@@ -1,3 +1,11 @@
+Changes in 0.6.47
+=================
+* Fix problem where libaccountsservice users weren't getting
+  property change updates
+* Reduce memory usage of cached users in daemon process
+* Drop premature user-added/user-removed signals that
+  erroneously get emitted before ListCachedUsers call finishes.
+
 Changes in 0.6.46
 =================
 * Fix systemd unit file to use default standard output
