@@ -75,7 +75,6 @@ wtmp_helper_update_login_frequencies (GHashTable *users)
         struct utmpx *wtmp_entry;
         GHashTableIter iter;
         gpointer key, value;
-        struct passwd *pwent;
         User *user;
         GVariantBuilder *builder, *builder2;
         GList *l;
@@ -125,11 +124,6 @@ wtmp_helper_update_login_frequencies (GHashTable *users)
                 }
 
                 if (wtmp_entry->ut_user[0] == 0) {
-                        continue;
-                }
-
-                pwent = getpwnam (wtmp_entry->ut_user);
-                if (pwent == NULL) {
                         continue;
                 }
 
