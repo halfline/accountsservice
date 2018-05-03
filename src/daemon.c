@@ -1062,6 +1062,7 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
         User *user;
         g_autoptr(GError) error = NULL;
         const gchar *argv[9];
+        g_autofree gchar *admin_groups = NULL;
 
         if (getpwnam (cd->user_name) != NULL) {
                 throw_error (context, ERROR_USER_EXISTS, "A user with name '%s' already exists", cd->user_name);
@@ -1075,12 +1076,11 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
         argv[2] = "-c";
         argv[3] = cd->real_name;
         if (cd->account_type == ACCOUNT_TYPE_ADMINISTRATOR) {
-                g_autofree gchar *admin_groups = NULL;
-
-                admin_groups = g_strdup (ADMIN_GROUP);
                 if (EXTRA_ADMIN_GROUPS != NULL && EXTRA_ADMIN_GROUPS[0] != '\0')
-                        admin_groups = g_strconcat (admin_groups, ",",
+                        admin_groups = g_strconcat (ADMIN_GROUP, ",",
                                                     EXTRA_ADMIN_GROUPS, NULL);
+                else
+                        admin_groups = g_strdup (ADMIN_GROUP);
 
                 argv[4] = "-G";
                 argv[5] = admin_groups;
