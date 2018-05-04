@@ -510,9 +510,9 @@ reload_users (Daemon *daemon)
                 refreshed_user = g_hash_table_lookup (users, name);
 
                 if (!refreshed_user || !user_get_cached (refreshed_user)) {
-                        user_unregister (user);
                         accounts_accounts_emit_user_deleted (ACCOUNTS_ACCOUNTS (daemon),
                                                              user_get_object_path (user));
+                        user_unregister (user);
                 }
         }
 
