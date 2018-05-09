@@ -1061,6 +1061,7 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
         CreateUserData *cd = data;
         User *user;
         g_autoptr(GError) error = NULL;
+        g_autofree gchar *admin_groups = NULL;
         const gchar *argv[9];
 
         if (getpwnam (cd->user_name) != NULL) {
@@ -1075,8 +1076,6 @@ daemon_create_user_authorized_cb (Daemon                *daemon,
         argv[2] = "-c";
         argv[3] = cd->real_name;
         if (cd->account_type == ACCOUNT_TYPE_ADMINISTRATOR) {
-                g_autofree gchar *admin_groups = NULL;
-
                 admin_groups = g_strdup (ADMIN_GROUP);
                 if (EXTRA_ADMIN_GROUPS != NULL && EXTRA_ADMIN_GROUPS[0] != '\0')
                         admin_groups = g_strconcat (admin_groups, ",",
