@@ -506,10 +506,13 @@ reload_users (Daemon *daemon)
         g_hash_table_iter_init (&iter, old_users);
         while (g_hash_table_iter_next (&iter, &name, (gpointer *)&user)) {
                 User *refreshed_user;
+                gboolean user_became_uncached;
 
                 refreshed_user = g_hash_table_lookup (users, name);
 
-                if (!refreshed_user || user_get_cached (user) && !user_get_cached (refreshed_user)) {
+                user_became_uncached = user_get_cached (user) && !user_get_cached (refreshed_user);
+
+                if (!refreshed_user || user_became_uncached) {
                         accounts_accounts_emit_user_deleted (ACCOUNTS_ACCOUNTS (daemon),
                                                              user_get_object_path (user));
                         user_unregister (user);
@@ -520,10 +523,13 @@ reload_users (Daemon *daemon)
         g_hash_table_iter_init (&iter, users);
         while (g_hash_table_iter_next (&iter, &name, (gpointer *)&user)) {
                 User *stale_user;
+                gboolean user_became_cached;
 
                 stale_user = g_hash_table_lookup (old_users, name);
 
-                if (!stale_user || !user_get_cached (stale_user) && user_get_cached (user)) {
+                user_became_cached = !user_get_cached (stale_user) && user_get_cached (user);
+
+                if (!stale_user || user_became_cached) {
                         user_register (user);
                         accounts_accounts_emit_user_added (ACCOUNTS_ACCOUNTS (daemon),
                                                            user_get_object_path (user));
