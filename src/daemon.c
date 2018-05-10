@@ -509,7 +509,7 @@ reload_users (Daemon *daemon)
 
                 refreshed_user = g_hash_table_lookup (users, name);
 
-                if (!refreshed_user || user_get_cached (user) && !user_get_cached (refreshed_user)) {
+                if (!refreshed_user || (user_get_cached (user) && !user_get_cached (refreshed_user))) {
                         accounts_accounts_emit_user_deleted (ACCOUNTS_ACCOUNTS (daemon),
                                                              user_get_object_path (user));
                         user_unregister (user);
@@ -523,7 +523,7 @@ reload_users (Daemon *daemon)
 
                 stale_user = g_hash_table_lookup (old_users, name);
 
-                if (!stale_user || !user_get_cached (stale_user) && user_get_cached (user)) {
+                if (!stale_user || (!user_get_cached (stale_user) && user_get_cached (user))) {
                         user_register (user);
                         accounts_accounts_emit_user_added (ACCOUNTS_ACCOUNTS (daemon),
                                                            user_get_object_path (user));
