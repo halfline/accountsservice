@@ -1543,7 +1543,8 @@ _get_x11_display_for_new_systemd_session (ActUserManagerNewSession *new_session)
                 return;
         }
 
-        if (g_strcmp0 (session_type, "x11") != 0) {
+        if (g_strcmp0 (session_type, "x11") != 0 &&
+            g_strcmp0 (session_type, "wayland") != 0) {
                 g_debug ("ActUserManager: (mostly) ignoring %s session '%s' since it's not graphical",
                          session_type,
                          new_session->id);
