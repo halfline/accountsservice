@@ -235,8 +235,8 @@ entry_generator_fgetpwent (Daemon       *daemon,
 
                         if (shadow_entry_buffers != NULL) {
                             *spent = &shadow_entry_buffers->spbuf;
-                            return pwent;
                         }
+                        return pwent;
                 }
         }
 
