@@ -1,3 +1,9 @@
+Changes in 0.6.50
+=================
+* Fix insufficient path check on user icon files
+* Fix is-logged-in status for wayland sessions
+* Fix user enumeration when system accounts are mixed in
+
 Changes in 0.6.49
 =================
 * Fix crash on startup from previous compiler warning fix
