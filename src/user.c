@@ -1334,6 +1334,14 @@ user_change_icon_file_authorized_cb (Daemon                *daemon,
         }
 
         file = g_file_new_for_path (filename);
+        g_clear_pointer (&filename, g_free);
+
+        /* Canonicalize path so we can call g_str_has_prefix on it
+         * below without concern for ../ path components moving outside
+         * the prefix
+         */
+        filename = g_file_get_path (file);
+
         info = g_file_query_info (file, G_FILE_ATTRIBUTE_UNIX_MODE ","
                                         G_FILE_ATTRIBUTE_STANDARD_TYPE ","
                                         G_FILE_ATTRIBUTE_STANDARD_SIZE,
