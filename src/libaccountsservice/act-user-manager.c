@@ -2382,7 +2382,7 @@ maybe_set_is_loaded (ActUserManager *manager)
         /* Don't set is_loaded yet unless the seat is already loaded enough
          * or failed to load.
          */
-        if (manager->priv->seat.state >= ACT_USER_MANAGER_SEAT_STATE_GET_ID) {
+        if (manager->priv->seat.state > ACT_USER_MANAGER_SEAT_STATE_GET_ID) {
                 g_debug ("ActUserManager: Seat loaded, so now setting loaded property");
         } else if (manager->priv->seat.state == ACT_USER_MANAGER_SEAT_STATE_UNLOADED) {
                 g_debug ("ActUserManager: Seat wouldn't load, so giving up on it and setting loaded property");
