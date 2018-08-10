@@ -1139,12 +1139,9 @@ _get_current_systemd_session_id (ActUserManager *manager)
         res = sd_pid_get_session (0, &session_id);
 
         if (res == -ENOENT) {
-                session_id = NULL;
-        } else if (res < 0) {
                 g_debug ("Failed to identify the current session: %s",
                          strerror (-res));
-                unload_seat (manager);
-                return;
+                session_id = NULL;
         }
 
         manager->priv->seat.session_id = g_strdup (session_id);
